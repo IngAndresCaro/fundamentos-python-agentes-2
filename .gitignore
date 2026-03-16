@@ -3,6 +3,10 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# Datos de usuarios (contiene contraseñas - no subir a Git)
+#usuarios.json se permite ya que es de prueba, pero si se quisiera ignorar se puede descomentar la siguiente línea
+#usuarios.json
+
 # C extensions
 *.so
 
