@@ -1,4 +1,23 @@
 [
-  { "id": 1, "usuario": "andres", "contraseña": "1234", "rol": "admin" },
-  { "id": 2, "usuario": "maria", "contraseña": "abcd", "rol": "invitado" }
+    {
+        "id": 1,
+        "usuario": "andres",
+        "contraseña": "1234",
+        "rol": "admin",
+        "bloqueado": false
+    },
+    {
+        "id": 2,
+        "usuario": "maria",
+        "contraseña": "abcd",
+        "rol": "invitado",
+        "bloqueado": false
+    },
+    {
+        "id": 3,
+        "usuario": "AndresPrueba",
+        "contraseña": "123456",
+        "rol": "invitado",
+        "bloqueado": false
+    }
 ]
