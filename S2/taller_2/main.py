@@ -1,7 +1,9 @@
 ## Nuestro proyecto esta dividido en dos archivos principales: main.py, que contiene la lógica de autenticación y el menú de opciones para el usuario, y utils/agente.py, que contiene la función pseudo_agente que simula un agente con diferentes comandos disponibles según el rol del usuario. Además, tenemos un archivo usuarios.json que almacena la información de los usuarios registrados en formato JSON.
 import sys
 import io
-from utils import cargar_usuarios, guardar_usuarios, pseudo_agente ## Importamos las funciones necesarias desde el módulo utils
+from utils import pseudo_agente # pylint: disable=import-error ## Importamos la función pseudo_agente desde el módulo utils
+from service.user_service import cargar_usuarios, guardar_usuarios, actualizar_usuario, eliminar_usuario # pylint: disable=import-error ## Importamos las funciones necesarias desde el módulo service
+from service.historial_service import cargar_historial, eliminar_todo_historial, guardar_historial # pylint: disable=import-error ## Importamos las funciones necesarias desde el módulo service para manejar el historial de comandos
 
 if isinstance(sys.stdout, io.TextIOWrapper):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -29,7 +31,7 @@ def main():
             for usuario_registrado in usuarios:
                 if usuario_registrado["usuario"] == usuario and usuario_registrado["contraseña"] == contraseña and not usuario_registrado["bloqueado"]:
                     print(f"Bienvenido, {usuario}!")
-                    pseudo_agente(usuario_registrado, usuario_registrado["rol"])
+                    pseudo_agente(usuario_registrado, usuario_registrado["rol"], cargar_usuarios, actualizar_usuario, eliminar_usuario, cargar_historial, eliminar_todo_historial, guardar_historial) ## Pasamos las funciones necesarias para manejar el historial de comandos al pseudo_agente
                     break ## Si el usuario y contraseña son correctos, se rompe el ciclo y no se ejecuta el bloque de "else"
             else:
                 print("Usuario o contraseña incorrectos.")

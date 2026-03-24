@@ -1,0 +1,20 @@
+[
+    {
+        "timestamp": "2026-03-23T21:49:38.431725",
+        "rol": "admin",
+        "cmd": "ping",
+        "descripcion": "Comando ping ejecutado"
+    },
+    {
+        "timestamp": "2026-03-23T21:49:50.783471",
+        "rol": "admin",
+        "cmd": "fecha_hoy",
+        "descripcion": "Comando fecha_hoy ejecutado: 2026-03-23"
+    },
+    {
+        "timestamp": "2026-03-23T21:50:15.379274",
+        "rol": "admin",
+        "cmd": "historial",
+        "descripcion": "Comando historial ejecutado: búsqueda 'ping' con 1 coincidencias"
+    }
+]
