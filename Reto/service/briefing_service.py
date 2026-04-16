@@ -148,12 +148,17 @@ def _auto_completar_misiones(datos_agente: dict, misiones: list[dict]) -> dict:
         "tipo_agente": type(agente).__name__,
     }
 
-###
+# -----------------------------------------------------------#
+
 #  Se traen en total 4 api publicas 3 en este servicio 1 en servicio de seguridad siendo la que mas tiempo le inverti
 # esto porque al momento de ejecutar la aplicación debemos validar que todo el sistema no se rompa y tenga vulneravilidades
 # las demas son solo de prueba para ver diferentes conexiones y que trae cada uno, en su practica
 # lo chevere de esto es que entre mejor su uso esto deja de ser un bot de tareas a un asistente inteligente
-###
+# -----------------------------------------------------------#
+# -----------------------------------------------------------#
+# Tambien se deja verificación con API key para que en casos de hakeo no nos traten sobre cargar
+# el sistema con petesiones masivas o no sean validas
+# -----------------------------------------------------------#
 @router.get("/briefing/{nombre}")
 def api_briefing(nombre: str, _key: str = Depends(verificar_api_key)):
     """Combina datos locales del agente con inteligencia externa por rol.

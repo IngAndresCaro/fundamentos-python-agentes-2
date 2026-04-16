@@ -15,9 +15,11 @@ from src.session import rol_sesion, sesion_valida
 
 # -------------------------------------------------------------------
 # Configuración del logger
-# INFO para eventos normales del servidor (startup, requests exitosos).
-# WARNING para situaciones inesperadas pero no fatales.
-# ERROR para fallos que requieren atención.
+# INFO para eventos normales del servidor (startup, requests exitosos) esto para tener información
+# de lo que se esta utilizando o generando posibles problemas.
+# WARNING para situaciones inesperadas pero no fatales donde tenemos que poner atención pero no
+# es critico.
+# ERROR para fallos que requieren atención y pueden generar daños o caidas del sistema.
 # Formato: fecha + nivel + mensaje, suficiente para auditar sin ruido.
 # -------------------------------------------------------------------
 logging.basicConfig(

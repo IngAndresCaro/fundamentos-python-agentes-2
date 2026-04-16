@@ -3,6 +3,7 @@
 ## Preparación del entorno
 
 > **Tip:** Para ver este archivo renderizado en VS Code: `Ctrl + Shift + V`
+  **Tip:** Recuerda que las credenciales vasicas son las ya manejadas con anterioridad y estan en base de datos user por si las requieres
 
 ### 1. Navega a la carpeta del reto
 
@@ -153,7 +154,7 @@ Esta separación permite que `agentes/agente.py` no dependa de FastAPI/Pydantic,
 
 ```bash
 # Desde la carpeta Reto/
-uvicorn main:app --reload --port 8000
+uvicorn main:app --reload
 ```
 
 > En Windows con Git Bash, si `uvicorn` no está en PATH:

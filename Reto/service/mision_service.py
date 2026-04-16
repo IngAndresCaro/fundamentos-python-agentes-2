@@ -35,9 +35,14 @@ def reconstruir_agente(nombre: str) -> PseudoAgente | None:
         return AgenteAdmin(nombre=datos["nombre"], energia=datos["energia"])
     return PseudoAgente(nombre=datos["nombre"], energia=datos["energia"])
 
-
+# -----------------------------------------------------------#
+# Se agrega verificación deApi Key para evitar creación extendida de misiones
+# puede ser util para evitar que usuarios externos creen misiones sin autorización y
+# puedan sobrecargar el sistema o crear misiones con requisitos no autorizados
+# -----------------------------------------------------------#
 @router.post("/misiones", status_code=201)
 def api_crear_mision(body: CrearMisionBody, _key: str = Depends(verificar_api_key)):
+    """Crea una misión asignada a un agente específico."""
     mision_id = crear_mision(
         body.titulo,
         body.descripcion,
@@ -51,20 +56,29 @@ def api_crear_mision(body: CrearMisionBody, _key: str = Depends(verificar_api_ke
     logger.info("Misión creada | id=%d agente=%s", mision_id, body.agente_asignado)
     return {"id": mision_id, "mensaje": "Misión creada"}
 
-
+# -----------------------------------------------------------#
+# Se agrega verificación deApi Key para evitar que usuarios externos
+# tengan acceso a las misiones asignadas a los agentes sin autorización
+# -----------------------------------------------------------#
 @router.get("/misiones/{nombre_agente}")
 def api_misiones_agente(nombre_agente: str, _key: str = Depends(verificar_api_key)):
+    """Devuelve las misiones asignadas a un agente específico."""
     return buscar_misiones_agente(nombre_agente)
 
-
+# -----------------------------------------------------------#
+# Se agrega verificación deApi Key donde no queremos revelar información confidencial
+# -----------------------------------------------------------#
 @router.get("/misiones/detalle/{mision_id}")
 def api_obtener_mision(mision_id: int, _key: str = Depends(verificar_api_key)):
+    """Devuelve los detalles de una misión específica."""
     mision = obtener_mision(mision_id)
     if mision is None:
         raise HTTPException(404, f"Misión #{mision_id} no encontrada")
     return mision
 
-
+# -----------------------------------------------------------#
+# Se agrega verificación deApi Key para que el cambio solo lo realice el administrador de tareas terminadas
+# -----------------------------------------------------------#
 @router.post("/misiones/{mision_id}/completar")
 def api_completar_mision(mision_id: int, _key: str = Depends(verificar_api_key)):
     """Completa una misión usando la clase de dominio para descontar energía.
