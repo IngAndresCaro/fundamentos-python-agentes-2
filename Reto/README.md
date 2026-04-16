@@ -55,16 +55,16 @@ pip install -r requirements.txt
 Copia el archivo de ejemplo y completa los valores:
 
 ```bash
-cp config/.env
+cp .env.example config/.env
 ```
 
 Edita `config/.env` con tus valores:
 ```
 AGENCIA_API_KEY=tu_clave_secreta_aqui
-EXTERNAL_API_URL=https://api.ejemplo.com
+EXTERNAL_API_URL=https://uselessfacts.jsph.pl/api/v2/facts/random
 ```
 
-> ⚠️ El archivo `.env` **no se versiona**.
+> ⚠️ El archivo `config/.env` **no se versiona**. Solo se versiona `.env.example`.
 
 ### 6. Verifica la instalación
 
@@ -80,95 +80,199 @@ python -c "from dotenv import load_dotenv; print('python-dotenv - OK')"
 
 ```
 Reto/
-├── main.py                  # App FastAPI y endpoints
-├── requirements.txt         # Dependencias del proyecto
-├── Reto_Consolidacion.md    # Enunciado del reto
-├── README.md                # Este archivo
+├── main.py                        # App FastAPI, middleware de sesión, dashboard
+├── requirements.txt               # Dependencias: fastapi, uvicorn, requests, python-dotenv, python-multipart
+├── .env.example                   # Plantilla de variables de entorno (se versiona)
+├── Reto_Consolidacion.md          # Enunciado del reto
+├── README.md                      # Este archivo
 │
-├── models/                  # Clases de dominio (sin SQL ni FastAPI)
+├── agentes/                       # 🧠 Comportamiento — clases de dominio puras
 │   ├── __init__.py
-│   └── agente.py            # PseudoAgente, AgenteAdmin
+│   └── agente.py                  # PseudoAgente, AgenteAdmin (herencia, polimorfismo)
 │
-├── repository/              # Persistencia con SQLite
+├── models/                        # 📐 Tipado — esquemas Pydantic para request/response
 │   ├── __init__.py
-│   └── db.py                # Funciones SQL (tablas, queries)
+│   └── agente.py                  # CrearAgenteBody, EnviarMensajeBody, CrearMisionBody
 │
-├── config/                  # Configuración
+├── repository/                    # 💾 Persistencia — solo SQL, sin FastAPI
 │   ├── __init__.py
-│   └── .env                 # Variables de entorno (NO versionado)
+│   ├── db.py                      # Funciones CRUD para agentes, mensajes, misiones + auth
+│   ├── agentes.db                 # Base de datos principal (agentes, mensajes, misiones)
+│   └── user.db                    # Base de datos de usuarios del sistema (login)
 │
-└── service/                 # Lógica de negocio
+├── config/                        # ⚙️ Configuración centralizada
+│   ├── __init__.py
+│   ├── config.py                  # Carga .env, exporta AGENCIA_API_KEY y EXTERNAL_API_URL
+│   └── .env                       # Variables de entorno reales (NO versionado)
+│
+├── service/                       # 🔌 Endpoints — routers FastAPI por dominio
+│   ├── __init__.py
+│   ├── agente_service.py          # CRUD de agentes + mensajes (/api/agentes, /api/mensajes)
+│   ├── mision_service.py          # CRUD de misiones + completar con R2 (/api/misiones)
+│   └── cliente_service.py         # Login/logout con formulario HTML (/login, /logout)
+│
+└── src/                           # 🎨 Presentación — HTML, sesiones
     ├── __init__.py
-    └── ...
+    ├── dashboard.py               # Template HTML: oficina animada con zonas y agentes
+    ├── cliente.py                  # Template HTML: formulario de login
+    └── session.py                 # Gestión de sesiones en memoria (token → rol)
 ```
+
+### Separación `agentes/` vs `models/`
+
+| Carpeta | Propósito | Contiene |
+|---------|-----------|----------|
+| `agentes/` | **Comportamiento** (dominio puro) | `PseudoAgente`, `AgenteAdmin` — energía, historial, polimorfismo de `consumir_energia()` |
+| `models/` | **Tipado** (validación de datos) | Esquemas Pydantic (`BaseModel`) — validan la forma de los JSON que recibe la API |
+
+Esta separación permite que `agentes/agente.py` no dependa de FastAPI/Pydantic, y que `models/agente.py` no tenga lógica de negocio.
 
 ---
 
 ## Cómo ejecutar
 
-### Levantar el servidor (Terminal 1)
+### Levantar el servidor
 
 ```bash
-uvicorn main:app --reload
+# Desde la carpeta Reto/
+uvicorn main:app --reload --port 8000
 ```
 
-El flag `--reload` reinicia el servidor automáticamente cada vez que guardas cambios.
-Deja esta terminal abierta.
+> En Windows con Git Bash, si `uvicorn` no está en PATH:
+> ```bash
+> ".venv/Scripts/python.exe" -m uvicorn main:app --reload --port 8000
+> ```
 
-### Abrir Swagger UI (Navegador)
+El flag `--reload` reinicia el servidor automáticamente al guardar cambios. Deja esta terminal abierta.
 
-Visita: [http://localhost:8000/docs](http://localhost:8000/docs)
+### Acceder a la aplicación
 
-Documentación interactiva generada por FastAPI. Desde aquí puedes probar cada endpoint.
+| URL | Descripción |
+|-----|-------------|
+| [http://localhost:8000/login](http://localhost:8000/login) | Formulario de login (punto de entrada) |
+| [http://localhost:8000/](http://localhost:8000/) | Dashboard con oficina animada (requiere sesión) |
+| [http://localhost:8000/docs](http://localhost:8000/docs) | Swagger UI — solo accesible con rol **admin** |
+| [http://localhost:8000/redoc](http://localhost:8000/redoc) | ReDoc — solo accesible con rol **admin** |
 
-### Ejecutar el cliente de demostración (Terminal 2)
+### Credenciales de prueba
 
-Con el servidor corriendo en otra terminal:
-
-```bash
-python cliente.py
-```
-
-Este script ejecuta el flujo completo sin intervención manual:
-1. Verifica que el servidor está vivo (`GET /`)
-2. Crea un agente (`POST /agentes/`) con autenticación
-3. Crea una misión asignada (`POST /misiones/`) con autenticación
-4. Completa la misión (`POST /misiones/{id}/completar`) con autenticación
-5. Consulta el briefing del agente (`GET /briefing/{nombre}`)
-6. Envía un mensaje y lee la bandeja
+| Usuario | Contraseña | Rol | Permisos |
+|---------|------------|-----|----------|
+| `admin` | `admin123` | admin | Dashboard completo, Swagger, crear/completar misiones |
+| `invitado` | `1234` | invitado | Dashboard solo lectura, consultar agentes y misiones |
 
 ---
 
 ## Tabla de endpoints
 
+### Autenticación (sesión con cookies)
+
 | Método | Ruta | Protegido | Descripción |
 |--------|------|-----------|-------------|
-| `GET` | `/` | No | Health check del servidor |
-| `GET` | `/agentes/` | No | Lista todos los agentes |
-| `GET` | `/agente/{nombre}` | No | Detalle de un agente |
-| `POST` | `/agentes/` | Sí (API key) | Crea un agente nuevo |
-| `POST` | `/mensajes/` | Sí (API key) | Envía un mensaje entre agentes |
-| `GET` | `/mensajes/{nombre}` | No | Bandeja de mensajes de un agente |
-| `POST` | `/misiones/` | Sí (API key) | Crea una misión asignada a un agente |
-| `GET` | `/misiones/{id}` | No | Detalle de una misión |
-| `GET` | `/agente/{nombre}/misiones` | No | Misiones asignadas a un agente |
-| `POST` | `/misiones/{id}/completar` | Sí (API key) | Completa una misión (descuenta energía) |
-| `GET` | `/briefing/{nombre}` | No | Briefing con datos locales + API externa |
+| `GET` | `/login` | No | Formulario HTML de login |
+| `POST` | `/login` | No | Valida credenciales, crea sesión, redirige a `/` |
+| `GET` | `/logout` | No | Cierra sesión y redirige a `/login` |
 
-Los endpoints protegidos requieren el header `X-API-KEY` con el valor configurado en `.env`.
+### Dashboard
+
+| Método | Ruta | Protegido | Descripción |
+|--------|------|-----------|-------------|
+| `GET` | `/` | Sí (sesión) | Dashboard con oficina animada según rol |
+
+### Agentes (`/api/agentes`)
+
+| Método | Ruta | Protegido | Descripción |
+|--------|------|-----------|-------------|
+| `GET` | `/api/agentes` | Sí (sesión) | Lista todos los agentes |
+| `GET` | `/api/agentes/{nombre}` | Sí (sesión) | Detalle de un agente (incluye `tipo_agente` y `es_admin`) |
+| `POST` | `/api/agentes` | Sí (sesión) | Crea un agente nuevo |
+
+### Mensajes (`/api/mensajes`)
+
+| Método | Ruta | Protegido | Descripción |
+|--------|------|-----------|-------------|
+| `POST` | `/api/mensajes` | Sí (sesión) | Envía un mensaje entre agentes |
+| `GET` | `/api/mensajes/{nombre_agente}` | Sí (sesión) | Bandeja de mensajes de un agente |
+
+### Misiones (`/api/misiones`)
+
+| Método | Ruta | Protegido | Descripción |
+|--------|------|-----------|-------------|
+| `POST` | `/api/misiones` | Sí (sesión) | Crea una misión asignada a un agente |
+| `GET` | `/api/misiones/{nombre_agente}` | Sí (sesión) | Misiones asignadas a un agente |
+| `GET` | `/api/misiones/detalle/{mision_id}` | Sí (sesión) | Detalle de una misión por ID |
+| `PUT` | `/api/misiones/{mision_id}/completar` | Sí (sesión) | Completa una misión (R2: descuenta energía con polimorfismo) |
+
+---
+
+## R2 — Clases de dominio reutilizadas
+
+Al "despertar" un agente desde la base de datos, se reconstruye como instancia de la clase correcta:
+
+```python
+# service/mision_service.py — reconstruir_agente()
+datos = despertar_agente(nombre)          # dict desde SQLite
+if datos["rol"] == "admin":
+    agente = AgenteAdmin(nombre=..., energia=...)
+else:
+    agente = PseudoAgente(nombre=..., energia=...)
+```
+
+Esto garantiza que `isinstance(agente, AgenteAdmin)` sea `True` cuando corresponde, y que el polimorfismo de `consumir_energia()` funcione:
+
+- **PseudoAgente**: descuenta el 100% de la energía requerida.
+- **AgenteAdmin**: descuenta solo el 50% (override en la subclase).
+
+Al completar una misión (`PUT /api/misiones/{id}/completar`):
+1. Se lee la misión de la DB.
+2. Se reconstruye la instancia de dominio del agente asignado.
+3. Se llama a `agente.consumir_energia(energia_requerida)` — **la clase decide el costo**.
+4. Se persiste la nueva energía y se marca la misión como completada.
+
+---
+
+## Dashboard — La Oficina
+
+Al iniciar sesión, el usuario ve una oficina animada con tres zonas donde los agentes se mueven:
+
+| Zona | Color | Criterio |
+|------|-------|----------|
+| 💼 **Trabajando** | Verde | Agentes con misiones pendientes |
+| 😴 **Holgazaneando** | Rojo | Agentes sin misiones y energía > 50 |
+| 🎮 **Recreándose** | Azul | Agentes sin misiones y energía ≤ 50 |
+
+Los agentes se representan con iconos según su rol (🕵️ espía, 📊 analista, 🛡️ guardián, 👔 admin) y tienen una barra de energía visual. Al hacer clic en un agente se despliega su detalle con misiones asignadas.
+
+Los botones de la barra lateral dependen del rol:
+- **Admin**: crear agente, nueva misión, enviar mensaje, completar misión + consultas.
+- **Invitado**: solo consultas (misiones y mensajes de un agente).
 
 ---
 
 ## Decisiones de Ingeniería
 
 ### 1. Esquema de la tabla `misiones`
-<!-- TODO: Justifica aquí qué columnas extra agregaste y por qué -->
+
+Se agregaron dos columnas extra al esquema mínimo:
+
+- **`prioridad TEXT DEFAULT 'media'`** — Permite clasificar misiones por urgencia (`baja`, `media`, `alta`, `critica`). En una agencia real, no todas las misiones tienen la misma importancia; la prioridad permite ordenar y filtrar. Se muestra en el dashboard para dar contexto visual al operador.
+- **`updated_at TEXT`** — Registra cuándo cambió el estado por última vez (ISO 8601). Complementa a `created_at` para saber no solo cuándo se creó la misión sino cuándo se completó o modificó. Útil para auditoría y para mostrar timestamps en el dashboard.
 
 ### 2. API pública elegida
 <!-- TODO: Justifica aquí cuál API elegiste, por qué encaja con la narrativa y qué añade al briefing -->
 
 ### 3. Estrategia de resiliencia
 <!-- TODO: Justifica aquí qué pasa cuando la API externa falla o tarda -->
+
+---
+
+## Requerimientos pendientes
+
+- [ ] **5.1** Autenticación con API key (`X-API-KEY` header) para endpoints de escritura
+- [ ] **5.2** Endpoint `GET /briefing/{nombre}` con integración de API pública externa
+- [ ] **R5** `cliente.py` — script de demostración end-to-end con `requests`
+- [ ] Datos semilla: 3 agentes, 5 mensajes, 3 misiones en estados distintos
+- [ ] Evidencias visuales (capturas Swagger: 401 sin key, 201 con key, briefing)
 
 ---
 

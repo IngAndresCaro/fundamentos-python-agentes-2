@@ -230,7 +230,7 @@ def buscar_misiones_agente(nombre_agente: str) -> list[dict]:
 
 
 def completar_mision(mision_id: int) -> bool:
-    """Marca una misión como completada. Retorna True si se actualizó."""
+    """Marca una misión como completada en la DB. Retorna True si se actualizó."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     ahora = datetime.datetime.now().isoformat()

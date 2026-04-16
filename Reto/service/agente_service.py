@@ -1,8 +1,9 @@
 import logging
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
 
+from agentes.agente import AgenteAdmin, PseudoAgente
+from models.agente import CrearAgenteBody, EnviarMensajeBody
 from repository.db import (
     listar_agentes,
     registrar_agente,
@@ -16,16 +17,18 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["Agentes"])
 
 
-class CrearAgenteBody(BaseModel):
-    nombre: str = Field(..., min_length=1, max_length=50)
-    rol: str = Field(..., min_length=1)
-    energia: int = Field(default=100, ge=1, le=200)
-
-
-class EnviarMensajeBody(BaseModel):
-    remitente: str = Field(..., min_length=1)
-    destinatario: str = Field(..., min_length=1)
-    contenido: str = Field(..., min_length=1, max_length=500)
+# -----------------------------------------------------------#
+# R2 — Al consultar un agente, se reconstruye como instancia
+# de dominio para verificar con isinstance.
+# -----------------------------------------------------------#
+def reconstruir_agente(nombre: str) -> PseudoAgente | None:
+    """Lee la DB y devuelve la instancia de dominio correcta según el rol."""
+    datos = despertar_agente(nombre)
+    if datos is None:
+        return None
+    if datos["rol"] == "admin":
+        return AgenteAdmin(nombre=datos["nombre"], energia=datos["energia"])
+    return PseudoAgente(nombre=datos["nombre"], energia=datos["energia"])
 
 
 @router.get("/agentes")
@@ -35,10 +38,13 @@ def api_listar_agentes():
 
 @router.get("/agentes/{nombre}")
 def api_obtener_agente(nombre: str):
-    agente = despertar_agente(nombre)
+    agente = reconstruir_agente(nombre)
     if agente is None:
         raise HTTPException(404, f"Agente '{nombre}' no encontrado")
-    return agente
+    datos = despertar_agente(nombre)
+    datos["tipo_agente"] = type(agente).__name__
+    datos["es_admin"] = isinstance(agente, AgenteAdmin)
+    return datos
 
 
 @router.post("/agentes", status_code=201)

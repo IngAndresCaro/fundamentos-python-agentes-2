@@ -1,0 +1,32 @@
+"""
+models/agente.py — Esquemas Pydantic para tipado de requests/responses.
+
+Aquí NO hay lógica de dominio ni SQL.
+Solo estructuras que validan la forma de los datos en la API.
+Las clases de comportamiento (PseudoAgente, AgenteAdmin) viven en agentes/agente.py.
+"""
+
+from pydantic import BaseModel, Field
+
+
+# -----------------------------------------------------------#
+## Request Bodies
+# -----------------------------------------------------------#
+class CrearAgenteBody(BaseModel):
+    nombre: str = Field(..., min_length=1, max_length=50)
+    rol: str = Field(..., min_length=1)
+    energia: int = Field(default=100, ge=1, le=200)
+
+
+class EnviarMensajeBody(BaseModel):
+    remitente: str = Field(..., min_length=1)
+    destinatario: str = Field(..., min_length=1)
+    contenido: str = Field(..., min_length=1, max_length=500)
+
+
+class CrearMisionBody(BaseModel):
+    titulo: str = Field(..., min_length=1, max_length=100)
+    descripcion: str = Field(default="")
+    agente_asignado: str = Field(..., min_length=1)
+    energia_requerida: int = Field(default=20, ge=1)
+    prioridad: str = Field(default="media")
