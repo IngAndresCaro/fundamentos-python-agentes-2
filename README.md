@@ -4,6 +4,7 @@
 - En S1 => taller_1 = Se encuentra el primer taller solicitado, arquitectura modular
 - En S2 => taller_2 = Se encuentra el segundo taller solicitado, diccionario y arrays
 - En S3 => taller_3 = Se encuentra el segundo taller solicitado, diccionario y arrays
+- En REto => taller_final = Se encuentra taller con todo adentro segun lo requerido
 
 --main ejecutable
 --utils funcionalidades agregadas al programa
