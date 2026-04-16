@@ -11,6 +11,7 @@ from repository.db import (
     crear_mision,
     despertar_agente,
     obtener_mision,
+    sumar_experiencia_agente,
 )
 from src.auth import verificar_api_key
 
@@ -43,6 +44,7 @@ def api_crear_mision(body: CrearMisionBody, _key: str = Depends(verificar_api_ke
         body.agente_asignado,
         body.energia_requerida,
         body.prioridad,
+        body.recompensa,
     )
     if mision_id is None:
         raise HTTPException(404, f"Agente '{body.agente_asignado}' no encontrado")
@@ -93,13 +95,18 @@ def api_completar_mision(mision_id: int, _key: str = Depends(verificar_api_key))
     actualizar_energia_agente(agente.nombre, agente.tokens)
     completar_mision(mision_id)
 
+    # Sumar experiencia al agente según la recompensa de la misión
+    recompensa = mision.get("recompensa", 10)
+    sumar_experiencia_agente(agente.nombre, recompensa)
+
     logger.info(
-        "Misión completada | id=%d tipo=%s energia_restante=%d",
-        mision_id, type(agente).__name__, agente.tokens,
+        "Misión completada | id=%d tipo=%s energia_restante=%d recompensa=%d",
+        mision_id, type(agente).__name__, agente.tokens, recompensa,
     )
     return {
         "mensaje": f"Misión #{mision_id} completada",
         "detalle": msg_energia,
         "energia_restante": agente.tokens,
         "tipo_agente": type(agente).__name__,
+        "recompensa": recompensa,
     }

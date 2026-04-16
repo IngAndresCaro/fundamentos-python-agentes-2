@@ -259,6 +259,7 @@ DASHBOARD_HTML = """
         <button onclick="openModal('crear-mision')">📋 Nueva misión</button>
         <button onclick="openModal('enviar-mensaje')">💬 Enviar mensaje</button>
         <button onclick="openModal('completar-mision')">✅ Completar misión</button>
+        <button onclick="openModal('recargar-agente')">🔋 Recargar agente</button>
         <button onclick="openModal('eliminar-agente')">🗑️ Eliminar agente</button>
       </div>
 
@@ -329,6 +330,8 @@ DASHBOARD_HTML = """
       <input id="cm-agente" placeholder="Nombre del agente">
       <label>Energía requerida</label>
       <input id="cm-energia" type="number" value="20" min="1">
+      <label>Recompensa (XP)</label>
+      <input id="cm-recompensa" type="number" value="10" min="0">
       <label>Prioridad</label>
       <select id="cm-prioridad">
         <option value="baja">Baja</option>
@@ -429,6 +432,32 @@ DASHBOARD_HTML = """
     </div>
   </div>
 
+  <!-- Recargar agente -->
+  <div class="modal-bg" id="modal-recargar-agente">
+    <div class="modal">
+      <h2>🔋 Recargar agente</h2>
+      <label>Agente</label>
+      <select id="ra-agente" style="width:100%;padding:0.5rem;margin-bottom:0.6rem;background:#111;border:1px solid #333;color:#eee;border-radius:4px">
+        <option value="">Cargando...</option>
+      </select>
+      <div id="ra-info" style="font-size:0.78rem;color:#888;margin-bottom:0.6rem"></div>
+      <label>Nuevo rol (opcional)</label>
+      <select id="ra-rol">
+        <option value="">(sin cambio)</option>
+        <option value="espía">Espía</option>
+        <option value="analista">Analista</option>
+        <option value="guardián">Guardián</option>
+        <option value="admin">Admin</option>
+      </select>
+      <label>Nueva energía (opcional)</label>
+      <input id="ra-energia" type="number" min="1" max="200" placeholder="Ej: 100">
+      <div class="btn-row">
+        <button class="btn btn-cancel" onclick="closeModal('recargar-agente')">Cancelar</button>
+        <button class="btn btn-ok" onclick="submitRecargarAgente()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast -->
   <div class="toast" id="toast"></div>
 
@@ -448,6 +477,7 @@ DASHBOARD_HTML = """
   function openModal(name) {{
     document.getElementById('modal-' + name).classList.add('active');
     if (name === 'eliminar-agente') cargarListaEliminacion();
+    if (name === 'recargar-agente') cargarListaRecarga();
   }}
   function closeModal(name) {{
     document.getElementById('modal-' + name).classList.remove('active');
@@ -496,6 +526,7 @@ DASHBOARD_HTML = """
           <div class="agent-icon">${{ICONS[ag.rol] || '🤖'}}</div>
           <div class="agent-name">${{ag.nombre}}</div>
           <div class="agent-bar"><div class="agent-bar-fill" style="width:${{ag.energia}}%;background:${{energyColor(ag.energia)}}"></div></div>
+          <div style="font-size:0.6rem;color:#4dc9f6;text-align:center">⭐ ${{ag.experiencia || 0}} XP</div>
         `;
         container.appendChild(el);
       }});
@@ -505,12 +536,12 @@ DASHBOARD_HTML = """
   function showDetail(ag) {{
     const panel = document.getElementById('detail-panel');
     document.getElementById('detail-name').textContent = (ICONS[ag.rol] || '🤖') + ' ' + ag.nombre;
-    let html = `<b>Rol:</b> ${{ag.rol}} &nbsp; <b>Energía:</b> ${{ag.energia}}/100`;
+    let html = `<b>Rol:</b> ${{ag.rol}} &nbsp; <b>Energía:</b> ${{ag.energia}}/100 &nbsp; <b style="color:#4dc9f6">⭐ ${{ag.experiencia || 0}} XP</b>`;
     if (ag.misiones && ag.misiones.length > 0) {{
       html += '<br><b>Misiones:</b><ul style="margin:0.3rem 0 0 1.2rem">';
       ag.misiones.forEach(m => {{
         const color = m.estado === 'completada' ? '#00ff99' : '#ffaa00';
-        html += `<li style="color:${{color}}">${{m.titulo}} [${{m.prioridad}}] — ${{m.estado}}</li>`;
+        html += `<li style="color:${{color}}">${{m.titulo}} [${{m.prioridad}}] — ${{m.estado}} | 🎁 ${{m.recompensa || 10}} XP</li>`;
       }});
       html += '</ul>';
     }} else {{
@@ -563,9 +594,10 @@ DASHBOARD_HTML = """
     const descripcion = document.getElementById('cm-desc').value.trim();
     const agente_asignado = document.getElementById('cm-agente').value.trim();
     const energia_requerida = parseInt(document.getElementById('cm-energia').value);
+    const recompensa = parseInt(document.getElementById('cm-recompensa').value);
     const prioridad = document.getElementById('cm-prioridad').value;
     if (!titulo || !agente_asignado) return toast('Título y agente requeridos', false);
-    const r = await api('POST', '/misiones', {{ titulo, descripcion, agente_asignado, energia_requerida, prioridad }});
+    const r = await api('POST', '/misiones', {{ titulo, descripcion, agente_asignado, energia_requerida, recompensa, prioridad }});
     if (r.status < 300) {{ toast('Misión creada (#' + r.data.id + ')', true); closeModal('crear-mision'); refreshOffice(); }}
     else toast(r.data.detail || 'Error', false);
   }}
@@ -597,7 +629,7 @@ DASHBOARD_HTML = """
     container.innerHTML = r.data.map(m =>
       `<div style="padding:0.4rem 0;border-bottom:1px solid #222">
         <b>#${{m.id}}</b> ${{m.titulo}} — <span style="color:${{m.estado==='completada'?'#00ff99':'#ffaa00'}}">${{m.estado}}</span>
-        [${{m.prioridad}}] | Energía: ${{m.energia_requerida}}
+        [${{m.prioridad}}] | Energía: ${{m.energia_requerida}} | 🎁 ${{m.recompensa || 10}} XP
       </div>`
     ).join('');
   }}
@@ -753,6 +785,47 @@ DASHBOARD_HTML = """
       }}
     }} catch (e) {{
       container.innerHTML = '<span style="color:#ff4444">Error de conexión</span>';
+    }}
+  }}
+
+  async function cargarListaRecarga() {{
+    const select = document.getElementById('ra-agente');
+    const info = document.getElementById('ra-info');
+    select.innerHTML = '<option value="">Cargando...</option>';
+    info.innerHTML = '';
+    try {{
+      const r = await api('GET', '/agentes');
+      if (!r.data || r.data.length === 0) {{ select.innerHTML = '<option value="">No hay agentes</option>'; return; }}
+      select.innerHTML = '<option value="">(selecciona)</option>' + r.data.map(ag =>
+        `<option value="${{ag.nombre}}">${{ag.nombre}} — ${{ag.rol}} | ⚡${{ag.energia}} | ⭐${{ag.experiencia || 0}} XP</option>`
+      ).join('');
+      select.onchange = () => {{
+        const ag = r.data.find(a => a.nombre === select.value);
+        if (ag) info.innerHTML = `Rol actual: <b>${{ag.rol}}</b> | Energía: <b>${{ag.energia}}</b> | XP: <b>${{ag.experiencia || 0}}</b>`;
+        else info.innerHTML = '';
+      }};
+    }} catch (e) {{
+      select.innerHTML = '<option value="">Error cargando</option>';
+    }}
+  }}
+
+  async function submitRecargarAgente() {{
+    const nombre = document.getElementById('ra-agente').value;
+    if (!nombre) return toast('Selecciona un agente', false);
+    const rol = document.getElementById('ra-rol').value || null;
+    const energiaVal = document.getElementById('ra-energia').value;
+    const energia = energiaVal ? parseInt(energiaVal) : null;
+    if (!rol && !energia) return toast('Indica rol o energía a cambiar', false);
+    const body = {{}};
+    if (rol) body.rol = rol;
+    if (energia) body.energia = energia;
+    const r = await api('PUT', '/agentes/' + encodeURIComponent(nombre), body);
+    if (r.status < 300) {{
+      toast('Agente ' + nombre + ' recargado', true);
+      closeModal('recargar-agente');
+      refreshOffice();
+    }} else {{
+      toast(r.data.detail || 'Error', false);
     }}
   }}
 

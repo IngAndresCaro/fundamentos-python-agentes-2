@@ -270,21 +270,9 @@ Se eligió la API de **Useless Facts** (`https://uselessfacts.jsph.pl/api/v2/fac
 
 Se implementó un timeout de **3 segundos** en la llamada a la API externa con `requests.get(..., timeout=3)`. Si la API falla (timeout, error de red, SSL, status != 200), se captura la excepción con `try/except` y se devuelve un mensaje de fallback: `"[Fallback] La fuente de inteligencia no está disponible."`, junto con la fuente marcada como `(error)`. Se registra un `logger.warning(...)` para auditar el fallo. De esta forma, el endpoint `/api/briefing/{nombre}` **siempre responde** con los datos locales del agente, sin dejar que un tercero cuelgue el servidor.
 
----
-
-## Estado de requerimientos
-
-- [x] **R1** Arquitectura modular (agentes/, models/, repository/, config/, service/, src/)
-- [x] **R2** Clases de dominio reutilizadas (`reconstruir_agente`, `isinstance`, polimorfismo)
-- [x] **R3** Persistencia SQLite (agentes, mensajes, misiones + columnas extra)
-- [x] **R4** API con FastAPI — todos los endpoints en `/api/` con API key
-- [x] **R5** `cliente.py` — script de demostración end-to-end
-- [x] **5.1** Autenticación con API key (`X-API-KEY` header) para endpoints de escritura
-- [x] **5.2** Endpoint `GET /api/briefing/{nombre}` con integración de API pública externa
-- [x] **5.3** Configuración con variables de entorno (`.env` + `config.py`)
-- [x] **5.4** Observabilidad con `logging` (niveles INFO/WARNING/ERROR)
-- [x] Datos semilla: 6 agentes, 8 mensajes, 4 misiones en 3 estados distintos
-- [ ] Evidencias visuales (capturas Swagger: 401 sin key, 201 con key, briefing)
+Qué pasa cuando la API externa falla o tarda? esta responde que no pudo ejecutar la respuesta, sacando un error soportado, puede pasar que el tiempo es muy corto en el equipo que estamos por seguridad no podemos ingresar o este mismo este caido
+¿Tu agente responde con un mensaje de fallback, omite el campo, o devuelve un error?  devuelve un fallback
+¿Por qué? esto para que el usuario no se quede sin información ya que el no reconoce codigo y aun no hemos conectado a chatsInteligentes para que nos den una respuesta mas amena a lo que buscamos
 
 ---
 
@@ -362,3 +350,4 @@ La API externa se mockea con `unittest.mock.patch` para que los tests no dependa
 - [Python logging — Basic Tutorial](https://docs.python.org/3/howto/logging.html)
 - [Requests — Timeouts](https://requests.readthedocs.io/en/latest/user/advanced/#timeouts)
 - [Useless Facts API](https://uselessfacts.jsph.pl/)
+

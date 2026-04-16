@@ -23,6 +23,7 @@ from repository.db import (
     buscar_misiones_agente,
     completar_mision,
     despertar_agente,
+    sumar_experiencia_agente,
 )
 from service.seguridad_service import (
     auto_completar_misiones_seguridad,
@@ -132,10 +133,12 @@ def _auto_completar_misiones(datos_agente: dict, misiones: list[dict]) -> dict:
             continue
         actualizar_energia_agente(agente.nombre, agente.tokens)
         completar_mision(m["id"])
+        recompensa = m.get("recompensa", 10)
+        sumar_experiencia_agente(agente.nombre, recompensa)
         completadas.append(m["titulo"])
         logger.info(
-            "Misión auto-completada | agente=%s id=%d titulo=%s energia_restante=%d",
-            agente.nombre, m["id"], m["titulo"], agente.tokens,
+            "Misión auto-completada | agente=%s id=%d titulo=%s energia_restante=%d recompensa=%d",
+            agente.nombre, m["id"], m["titulo"], agente.tokens, recompensa,
         )
 
     return {
@@ -145,7 +148,12 @@ def _auto_completar_misiones(datos_agente: dict, misiones: list[dict]) -> dict:
         "tipo_agente": type(agente).__name__,
     }
 
-
+###
+#  Se traen en total 4 api publicas 3 en este servicio 1 en servicio de seguridad siendo la que mas tiempo le inverti
+# esto porque al momento de ejecutar la aplicación debemos validar que todo el sistema no se rompa y tenga vulneravilidades
+# las demas son solo de prueba para ver diferentes conexiones y que trae cada uno, en su practica
+# lo chevere de esto es que entre mejor su uso esto deja de ser un bot de tareas a un asistente inteligente
+###
 @router.get("/briefing/{nombre}")
 def api_briefing(nombre: str, _key: str = Depends(verificar_api_key)):
     """Combina datos locales del agente con inteligencia externa por rol.

@@ -18,6 +18,11 @@ class CrearAgenteBody(BaseModel):
     energia: int = Field(default=100, ge=1, le=200)
 
 
+class ActualizarAgenteBody(BaseModel):
+    rol: str | None = Field(default=None, min_length=1)
+    energia: int | None = Field(default=None, ge=1, le=200)
+
+
 class EnviarMensajeBody(BaseModel):
     remitente: str = Field(..., min_length=1)
     destinatario: str = Field(..., min_length=1)
@@ -29,4 +34,5 @@ class CrearMisionBody(BaseModel):
     descripcion: str = Field(default="")
     agente_asignado: str = Field(..., min_length=1)
     energia_requerida: int = Field(default=20, ge=1)
+    recompensa: int = Field(default=10, ge=0)
     prioridad: str = Field(default="media")

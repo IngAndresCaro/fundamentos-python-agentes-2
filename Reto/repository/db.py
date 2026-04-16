@@ -25,7 +25,8 @@ def crear_tablas() -> None:
         CREATE TABLE IF NOT EXISTS agentes (
             nombre TEXT PRIMARY KEY,
             rol TEXT,
-            energia INTEGER
+            energia INTEGER,
+            experiencia INTEGER DEFAULT 0
         )
     """)
     cursor.execute("""
@@ -48,6 +49,7 @@ def crear_tablas() -> None:
             agente_asignado TEXT,
             estado TEXT DEFAULT 'pendiente',
             energia_requerida INTEGER,
+            recompensa INTEGER DEFAULT 10,
             prioridad TEXT DEFAULT 'media',
             created_at TEXT,
             updated_at TEXT
@@ -67,6 +69,17 @@ def crear_tablas() -> None:
             consultado_en TEXT NOT NULL
         )
     """)
+
+    # ── Migraciones: añadir columnas a tablas existentes ──
+    for col, ddl in [
+        ("experiencia", "ALTER TABLE agentes ADD COLUMN experiencia INTEGER DEFAULT 0"),
+        ("recompensa", "ALTER TABLE misiones ADD COLUMN recompensa INTEGER DEFAULT 10"),
+    ]:
+        try:
+            cursor.execute(ddl)
+        except sqlite3.OperationalError:
+            pass  # la columna ya existe
+
     conn.commit()
     conn.close()
 
@@ -96,12 +109,12 @@ def despertar_agente(nombre: str) -> dict | None:
     """Busca un agente por nombre. Retorna dict o None."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT nombre, rol, energia FROM agentes WHERE nombre = ?", (nombre,))
+    cursor.execute("SELECT nombre, rol, energia, experiencia FROM agentes WHERE nombre = ?", (nombre,))
     fila = cursor.fetchone()
     conn.close()
     if fila is None:
         return None
-    return {"nombre": fila[0], "rol": fila[1], "energia": fila[2]}
+    return {"nombre": fila[0], "rol": fila[1], "energia": fila[2], "experiencia": fila[3] or 0}
 
 
 def actualizar_energia_agente(nombre: str, nueva_energia: int) -> None:
@@ -116,14 +129,52 @@ def actualizar_energia_agente(nombre: str, nueva_energia: int) -> None:
     conn.close()
 
 
+def actualizar_agente(nombre: str, rol: str | None = None, energia: int | None = None) -> str:
+    """Actualiza el rol y/o energía de un agente. Retorna mensaje de éxito o error."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT 1 FROM agentes WHERE nombre = ?", (nombre,))
+    if cursor.fetchone() is None:
+        conn.close()
+        return f"[DB] Error: Agente '{nombre}' no encontrado."
+    campos = []
+    valores = []
+    if rol is not None:
+        campos.append("rol = ?")
+        valores.append(rol)
+    if energia is not None:
+        campos.append("energia = ?")
+        valores.append(energia)
+    if not campos:
+        conn.close()
+        return "[DB] Error: Nada que actualizar."
+    valores.append(nombre)
+    cursor.execute(f"UPDATE agentes SET {', '.join(campos)} WHERE nombre = ?", valores)
+    conn.commit()
+    conn.close()
+    return f"[DB] Agente '{nombre}' actualizado."
+
+
 def listar_agentes() -> list[dict]:
     """Retorna una lista con todos los agentes registrados."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT nombre, rol, energia FROM agentes")
+    cursor.execute("SELECT nombre, rol, energia, experiencia FROM agentes")
     filas = cursor.fetchall()
     conn.close()
-    return [{"nombre": f[0], "rol": f[1], "energia": f[2]} for f in filas]
+    return [{"nombre": f[0], "rol": f[1], "energia": f[2], "experiencia": f[3] or 0} for f in filas]
+
+
+def sumar_experiencia_agente(nombre: str, puntos: int) -> None:
+    """Suma puntos de experiencia a un agente."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE agentes SET experiencia = COALESCE(experiencia, 0) + ? WHERE nombre = ?",
+        (puntos, nombre),
+    )
+    conn.commit()
+    conn.close()
 
 
 def misiones_activas_agente(nombre: str) -> list[dict]:
@@ -205,6 +256,7 @@ def crear_mision(
     agente_asignado: str,
     energia_requerida: int,
     prioridad: str = "media",
+    recompensa: int = 10,
 ) -> int | None:
     """Crea una misión. Retorna el id de la misión creada, o None si el agente no existe."""
     conn = sqlite3.connect(DB_PATH)
@@ -216,8 +268,8 @@ def crear_mision(
         return None
     ahora = datetime.datetime.now().isoformat()
     cursor.execute(
-        "INSERT INTO misiones (titulo, descripcion, agente_asignado, estado, energia_requerida, prioridad, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (titulo, descripcion, agente_asignado, "pendiente", energia_requerida, prioridad, ahora, ahora),
+        "INSERT INTO misiones (titulo, descripcion, agente_asignado, estado, energia_requerida, recompensa, prioridad, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (titulo, descripcion, agente_asignado, "pendiente", energia_requerida, recompensa, prioridad, ahora, ahora),
     )
     conn.commit()
     mision_id = cursor.lastrowid
@@ -230,7 +282,7 @@ def obtener_mision(mision_id: int) -> dict | None:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT id, titulo, descripcion, agente_asignado, estado, energia_requerida, prioridad, created_at, updated_at FROM misiones WHERE id = ?",
+        "SELECT id, titulo, descripcion, agente_asignado, estado, energia_requerida, recompensa, prioridad, created_at, updated_at FROM misiones WHERE id = ?",
         (mision_id,),
     )
     fila = cursor.fetchone()
@@ -244,9 +296,10 @@ def obtener_mision(mision_id: int) -> dict | None:
         "agente_asignado": fila[3],
         "estado": fila[4],
         "energia_requerida": fila[5],
-        "prioridad": fila[6],
-        "created_at": fila[7],
-        "updated_at": fila[8],
+        "recompensa": fila[6] or 10,
+        "prioridad": fila[7],
+        "created_at": fila[8],
+        "updated_at": fila[9],
     }
 
 
@@ -255,7 +308,7 @@ def buscar_misiones_agente(nombre_agente: str) -> list[dict]:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT id, titulo, descripcion, agente_asignado, estado, energia_requerida, prioridad, created_at, updated_at FROM misiones WHERE agente_asignado = ? ORDER BY created_at",
+        "SELECT id, titulo, descripcion, agente_asignado, estado, energia_requerida, recompensa, prioridad, created_at, updated_at FROM misiones WHERE agente_asignado = ? ORDER BY created_at",
         (nombre_agente,),
     )
     filas = cursor.fetchall()
@@ -268,9 +321,10 @@ def buscar_misiones_agente(nombre_agente: str) -> list[dict]:
             "agente_asignado": f[3],
             "estado": f[4],
             "energia_requerida": f[5],
-            "prioridad": f[6],
-            "created_at": f[7],
-            "updated_at": f[8],
+            "recompensa": f[6] or 10,
+            "prioridad": f[7],
+            "created_at": f[8],
+            "updated_at": f[9],
         }
         for f in filas
     ]

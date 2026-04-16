@@ -28,6 +28,7 @@ from repository.db import (
     completar_mision,
     guardar_cves_cache,
     obtener_cves_cache,
+    sumar_experiencia_agente,
 )
 from repository.sbom import SBOM_STACK
 
@@ -317,10 +318,12 @@ def auto_completar_misiones_seguridad(
             continue
         actualizar_energia_agente(agente.nombre, agente.tokens)
         completar_mision(m["id"])
+        recompensa = m.get("recompensa", 10)
+        sumar_experiencia_agente(agente.nombre, recompensa)
         completadas.append(m["titulo"])
         logger.info(
-            "Misión auto-completada por Smit | id=%d titulo=%s energia_restante=%d",
-            m["id"], m["titulo"], agente.tokens,
+            "Misión auto-completada por Smit | id=%d titulo=%s energia_restante=%d recompensa=%d",
+            m["id"], m["titulo"], agente.tokens, recompensa,
         )
 
     return {

@@ -3,11 +3,12 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 
 from agentes.agente import AgenteAdmin, PseudoAgente
-from models.agente import CrearAgenteBody, EnviarMensajeBody
+from models.agente import ActualizarAgenteBody, CrearAgenteBody, EnviarMensajeBody
 from repository.db import (
     listar_agentes,
     registrar_agente,
     despertar_agente,
+    actualizar_agente,
     enviar_mensaje,
     leer_mensajes,
     eliminar_agente,
@@ -78,6 +79,17 @@ def api_estado_eliminacion(nombre: str, _key: str = Depends(verificar_api_key)):
     """Devuelve si el agente puede eliminarse (sin misiones activas)."""
     activas = misiones_activas_agente(nombre)
     return {"nombre": nombre, "puede_eliminar": len(activas) == 0, "misiones_activas": activas}
+
+
+@router.put("/agentes/{nombre}")
+def api_actualizar_agente(nombre: str, body: ActualizarAgenteBody, _key: str = Depends(verificar_api_key)):
+    """Actualiza el rol y/o energía de un agente."""
+    resultado = actualizar_agente(nombre, body.rol, body.energia)
+    if "Error" in resultado:
+        code = 404 if "no encontrado" in resultado else 400
+        raise HTTPException(code, resultado)
+    logger.info("Agente actualizado | nombre=%s rol=%s energia=%s", nombre, body.rol, body.energia)
+    return {"mensaje": resultado}
 
 
 @router.delete("/agentes/{nombre}")
