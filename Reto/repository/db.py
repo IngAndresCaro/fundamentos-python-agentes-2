@@ -53,6 +53,20 @@ def crear_tablas() -> None:
             updated_at TEXT
         )
     """)
+    # Cache de CVEs: evita consultar la NVD/GitHub en cada petición.
+    # cpe_consultado agrupa los resultados por componente del stack.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS cache_cves (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            cve_id TEXT NOT NULL,
+            cpe_consultado TEXT NOT NULL,
+            descripcion TEXT,
+            severidad TEXT,
+            score REAL DEFAULT 0.0,
+            fuente TEXT NOT NULL,
+            consultado_en TEXT NOT NULL
+        )
+    """)
     conn.commit()
     conn.close()
 
@@ -311,3 +325,64 @@ def autenticar_usuario(user: str, password: str) -> dict:
         "access": False,
         "descripcion": "[Sistema] Credenciales incorrectas.",
     }
+
+
+# -----------------------------------------------------------#
+## Cache de CVEs (Agente Smit — seguridad)
+# -----------------------------------------------------------#
+def guardar_cves_cache(cves: list[dict], cpe: str, fuente: str) -> None:
+    """Persiste una lista de CVEs en cache para un CPE dado."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    ahora = datetime.datetime.now().isoformat()
+    for cve in cves:
+        cursor.execute(
+            "INSERT INTO cache_cves (cve_id, cpe_consultado, descripcion, severidad, score, fuente, consultado_en) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (cve["id"], cpe, cve.get("descripcion", ""), cve.get("severidad", "N/A"), cve.get("score", 0.0), fuente, ahora),
+        )
+    conn.commit()
+    conn.close()
+
+
+def obtener_cves_cache(cpe: str, ttl_segundos: int) -> list[dict] | None:
+    """Retorna CVEs cacheados si no han expirado. None si hay que refrescar."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT consultado_en FROM cache_cves WHERE cpe_consultado = ? ORDER BY consultado_en DESC LIMIT 1",
+        (cpe,),
+    )
+    fila = cursor.fetchone()
+    if fila is None:
+        conn.close()
+        return None
+
+    ultimo = datetime.datetime.fromisoformat(fila[0])
+    if (datetime.datetime.now() - ultimo).total_seconds() > ttl_segundos:
+        # Cache expirado — limpiar
+        cursor.execute("DELETE FROM cache_cves WHERE cpe_consultado = ?", (cpe,))
+        conn.commit()
+        conn.close()
+        return None
+
+    cursor.execute(
+        "SELECT cve_id, descripcion, severidad, score, fuente FROM cache_cves WHERE cpe_consultado = ? ORDER BY score DESC",
+        (cpe,),
+    )
+    filas = cursor.fetchall()
+    conn.close()
+    return [
+        {"id": f[0], "descripcion": f[1], "severidad": f[2], "score": f[3], "fuente": f[4]}
+        for f in filas
+    ]
+
+
+def limpiar_cache_cves() -> int:
+    """Elimina todo el cache de CVEs. Retorna filas eliminadas."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM cache_cves")
+    conn.commit()
+    eliminadas = cursor.rowcount
+    conn.close()
+    return eliminadas

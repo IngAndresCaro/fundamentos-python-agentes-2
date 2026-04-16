@@ -403,7 +403,7 @@ DASHBOARD_HTML = """
 
   <!-- Briefing de agente -->
   <div class="modal-bg" id="modal-ver-briefing">
-    <div class="modal">
+    <div class="modal" style="max-width:600px;max-height:85vh;overflow-y:auto">
       <h2>🗂️ Briefing de agente</h2>
       <label>Nombre del agente</label>
       <input id="vb-agente" placeholder="Nombre del agente">
@@ -628,21 +628,108 @@ DASHBOARD_HTML = """
       const r = await api('GET', '/briefing/' + encodeURIComponent(nombre));
       if (r.status >= 400) {{ container.innerHTML = `<span style="color:#ff4444">${{r.data.detail || 'Error'}}</span>`; return; }}
       const b = r.data;
-      container.innerHTML = `
+      let html = `
         <div style="border-bottom:1px solid #222;padding-bottom:0.5rem;margin-bottom:0.5rem">
           <b style="color:#00ff99">${{b.agente.nombre}}</b> — ${{b.agente.rol}} | Energía: ${{b.agente.energia}}
         </div>
         <div style="margin-bottom:0.5rem">
           📋 Misiones: <b>${{b.resumen_misiones.total}}</b> total |
           <span style="color:#ffaa00">${{b.resumen_misiones.pendientes}} pendientes</span> |
+          <span style="color:#4dc9f6">${{b.resumen_misiones.en_curso || 0}} en curso</span> |
           <span style="color:#00ff99">${{b.resumen_misiones.completadas}} completadas</span>
         </div>
         <div style="background:#111;border:1px solid #333;border-radius:4px;padding:0.6rem;margin-bottom:0.4rem">
-          🌐 <b>Inteligencia externa:</b><br>
+          🌐 <b>Inteligencia externa:</b>
+          ${{b.tono ? `<span style="display:inline-block;background:#1a1a2e;border:1px solid #555;border-radius:3px;padding:0.1rem 0.4rem;font-size:0.7rem;margin-left:0.4rem;color:${{b.tono==='empático'?'#ffaa00':b.tono==='profesional'?'#4dc9f6':'#00ff99'}}">${{b.tono}}</span>` : ''}}<br>
           <i>${{b.inteligencia_externa}}</i>
         </div>
-        <div style="font-size:0.7rem;color:#555">Fuente: ${{b.fuente_externa}}</div>
+        <div style="font-size:0.7rem;color:#555;margin-bottom:0.6rem">Fuente: ${{b.fuente_externa}}</div>
       `;
+
+      // ── Bloque de inteligencia de seguridad (Agente Smit) ──
+      if (b.inteligencia_seguridad) {{
+        const seg = b.inteligencia_seguridad;
+        // SBOM escaneado
+        const sbomHtml = seg.sbom.map(c =>
+          `<span style="display:inline-block;background:#1a1a2e;border:1px solid ${{c.cves_encontrados > 0 ? '#ff4444' : '#333'}};border-radius:3px;padding:0.15rem 0.5rem;margin:0.15rem;font-size:0.75rem">`
+          + `${{c.componente}} <span style="color:#888">v${{c.version}}</span>`
+          + (c.cves_encontrados > 0 ? ` <span style="color:#ff4444;font-weight:bold">${{c.cves_encontrados}} CVE</span>` : ` <span style="color:#00ff99">✔</span>`)
+          + `</span>`
+        ).join('');
+
+        // Alertas críticas
+        let alertasHtml = '';
+        if (seg.alertas_criticas && seg.alertas_criticas.length > 0) {{
+          alertasHtml = `<div style="background:#2a1010;border:1px solid #ff4444;border-radius:4px;padding:0.5rem;margin-bottom:0.4rem">
+            <b style="color:#ff4444">🚨 ${{seg.alertas_criticas.length}} alerta(s) CVSS ≥ 7.0</b>
+            ${{seg.alertas_criticas.map(a => `<div style="font-size:0.78rem;padding:0.2rem 0;border-bottom:1px solid #331111">
+              <b style="color:#ffaa00">${{a.id}}</b> (${{a.componente}}) — ${{a.severidad}} <span style="color:#ff4444">${{a.score}}</span>
+              <div style="color:#aaa;font-size:0.72rem">${{a.descripcion.substring(0, 150)}}…</div>
+            </div>`).join('')}}
+          </div>`;
+        }}
+
+        // Vulnerabilidades recientes
+        let vulnsHtml = '';
+        if (seg.vulnerabilidades_recientes && seg.vulnerabilidades_recientes.length > 0) {{
+          vulnsHtml = seg.vulnerabilidades_recientes.map(v =>
+            `<div style="font-size:0.78rem;padding:0.3rem 0;border-bottom:1px solid #222">
+              <b style="color:${{v.score >= 7 ? '#ff4444' : v.score >= 4 ? '#ffaa00' : '#00ff99'}}">${{v.id}}</b>
+              <span style="color:#888">(${{v.componente}} — ${{v.fuente}})</span>
+              <span style="float:right;color:${{v.score >= 7 ? '#ff4444' : '#ffaa00'}}">${{v.severidad}} ${{v.score}}</span>
+              <div style="color:#aaa;font-size:0.72rem">${{v.descripcion.substring(0, 180)}}…</div>
+            </div>`
+          ).join('');
+        }}
+
+        // Recomendaciones
+        const recsHtml = seg.recomendaciones.map(r =>
+          `<div style="font-size:0.78rem;padding:0.15rem 0;color:#ccc">${{r}}</div>`
+        ).join('');
+
+        // Misiones analizadas + auto-completadas
+        const misionesHtml = seg.misiones_analizadas
+          ? seg.misiones_analizadas.map(m => `<span style="background:#1a2a1a;border:1px solid #00ff99;border-radius:3px;padding:0.1rem 0.4rem;margin:0.1rem;font-size:0.72rem;display:inline-block">🔍 ${{m}}</span>`).join('')
+          : '';
+
+        let autoCompHtml = '';
+        if (seg.misiones_auto_completadas && seg.misiones_auto_completadas.length > 0) {{
+          autoCompHtml = `<div style="background:#102a10;border:1px solid #00ff99;border-radius:4px;padding:0.5rem;margin-top:0.4rem">
+            <b style="color:#00ff99;font-size:0.82rem">✅ Misiones completadas automáticamente (${{seg.misiones_auto_completadas.length}}):</b>
+            ${{seg.misiones_auto_completadas.map(m => `<div style="font-size:0.78rem;color:#ccc;padding:0.1rem 0">  ✔ ${{m}}</div>`).join('')}}
+          </div>`;
+        }}
+        if (seg.misiones_sin_energia && seg.misiones_sin_energia.length > 0) {{
+          autoCompHtml += `<div style="background:#2a2a10;border:1px solid #ffaa00;border-radius:4px;padding:0.5rem;margin-top:0.4rem">
+            <b style="color:#ffaa00;font-size:0.82rem">⚠️ Sin energía suficiente (${{seg.misiones_sin_energia.length}}):</b>
+            ${{seg.misiones_sin_energia.map(m => `<div style="font-size:0.78rem;color:#ccc;padding:0.1rem 0">  ⚡ ${{m}}</div>`).join('')}}
+          </div>`;
+        }}
+
+        html += `
+          <div style="background:#0d1117;border:2px solid #ff4444;border-radius:6px;padding:0.7rem;margin-top:0.5rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+              <b style="color:#ff4444;font-size:1rem">🛡️ Inteligencia de Seguridad</b>
+              <span style="font-size:0.72rem;color:${{seg.estado === 'activo' ? '#00ff99' : '#ffaa00'}}">${{seg.estado === 'activo' ? '● NVD activo' : '● Modo fallback'}}</span>
+            </div>
+            <div style="margin-bottom:0.5rem">
+              <b style="color:#888;font-size:0.78rem">SBOM escaneado:</b><br>${{sbomHtml}}
+            </div>
+            ${{alertasHtml}}
+            ${{vulnsHtml ? `<details style="margin-bottom:0.4rem"><summary style="color:#4dc9f6;cursor:pointer;font-size:0.82rem">📄 ${{seg.total_vulnerabilidades}} vulnerabilidad(es) encontrada(s)</summary><div style="max-height:200px;overflow-y:auto;margin-top:0.3rem">${{vulnsHtml}}</div></details>` : '<div style="color:#00ff99;font-size:0.82rem;margin-bottom:0.4rem">✅ Sin vulnerabilidades detectadas</div>'}}
+            <details style="margin-bottom:0.4rem"><summary style="color:#ffaa00;cursor:pointer;font-size:0.82rem">💡 Recomendaciones (${{seg.recomendaciones.length}})</summary><div style="margin-top:0.3rem">${{recsHtml}}</div></details>
+            ${{misionesHtml ? `<div style="margin-top:0.3rem"><b style="color:#888;font-size:0.72rem">Misiones analizadas:</b><br>${{misionesHtml}}</div>` : ''}}
+            ${{autoCompHtml}}
+            <div style="font-size:0.65rem;color:#444;margin-top:0.4rem">Fuentes: ${{seg.fuentes.join(' | ')}}</div>
+          </div>
+        `;
+      }}
+
+      container.innerHTML = html;
+      // Refrescar oficina si se completaron misiones (Smit cambia de zona)
+      if (b.inteligencia_seguridad && b.inteligencia_seguridad.misiones_auto_completadas && b.inteligencia_seguridad.misiones_auto_completadas.length > 0) {{
+        refreshOffice();
+      }}
     }} catch (e) {{
       container.innerHTML = '<span style="color:#ff4444">Error de conexión</span>';
     }}

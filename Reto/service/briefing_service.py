@@ -1,57 +1,134 @@
 # -----------------------------------------------------------#
 # 5.2 — Endpoint GET /briefing/{nombre}.
-# Elegí la API de Useless Facts (https://uselessfacts.jsph.pl) porque encaja
-# con la narrativa: un agente recibe "inteligencia" aleatoria del mundo exterior
-# como parte de su briefing — datos curiosos que podrían ser pistas encubiertas.
-# Si la API falla o tarda más de 3 segundos, el briefing se entrega igual con
-# un mensaje de fallback indicando que la fuente externa no está disponible.
+#
+# Inteligencia por rol:
+#   • guardián / espía  → Advice Slip (consejos de vida — tono empático)
+#   • analista / admin   → Wikipedia Featured (cultura general — tono profesional)
+#   • explorador / otros → JokeAPI Programming (chistes geek — tono divertido)
+#   • Seguridad          → Delegada a seguridad_service.py (Agente Smit).
+#
+# Si la API externa falla o tarda, el briefing se entrega con fallback.
 # -----------------------------------------------------------#
 import logging
+from datetime import date
 
 import requests as http_client
 from fastapi import APIRouter, Depends, HTTPException
 
-from config.config import EXTERNAL_API_URL, TIMEOUT_EXTERNO
+from config.config import API_ADVICE_URL, API_JOKE_URL, API_WIKIPEDIA_URL, TIMEOUT_EXTERNO
 from src.auth import verificar_api_key
 from repository.db import buscar_misiones_agente, despertar_agente
+from service.seguridad_service import (
+    auto_completar_misiones_seguridad,
+    es_mision_seguridad,
+    obtener_inteligencia_seguridad,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["Briefing"])
 
+# ── Mapeo rol → API + tono ──
+_ROLES_ADVICE = {"guardián", "espía"}
+_ROLES_WIKIPEDIA = {"analista", "admin"}
+# El resto usa JokeAPI
+
+
+def _obtener_advice() -> tuple[str | None, str]:
+    """Advice Slip — consejo de vida aleatorio."""
+    url = API_ADVICE_URL
+    try:
+        resp = http_client.get(url, timeout=TIMEOUT_EXTERNO)
+        resp.raise_for_status()
+        body = resp.json()
+        texto = body.get("slip", {}).get("advice", str(body))
+        return f"💡 {texto}", url
+    except http_client.Timeout:
+        return "[Fallback] Advice Slip no respondió a tiempo.", url + " (timeout)"
+    except http_client.RequestException as exc:
+        logger.warning("Advice Slip error: %s", exc)
+        return "[Fallback] Advice Slip no está disponible.", url + " (error)"
+
+
+def _obtener_joke() -> tuple[str | None, str]:
+    """JokeAPI — chiste de programación."""
+    url = API_JOKE_URL
+    try:
+        resp = http_client.get(url, timeout=TIMEOUT_EXTERNO)
+        resp.raise_for_status()
+        body = resp.json()
+        texto = body.get("joke", str(body))
+        return f"😂 {texto}", url
+    except http_client.Timeout:
+        return "[Fallback] JokeAPI no respondió a tiempo.", url + " (timeout)"
+    except http_client.RequestException as exc:
+        logger.warning("JokeAPI error: %s", exc)
+        return "[Fallback] JokeAPI no está disponible.", url + " (error)"
+
+
+def _obtener_wikipedia() -> tuple[str | None, str]:
+    """Wikipedia Featured — artículo destacado del día."""
+    hoy = date.today()
+    url = f"{API_WIKIPEDIA_URL}/{hoy.year}/{hoy.month:02d}/{hoy.day:02d}"
+    try:
+        resp = http_client.get(url, timeout=TIMEOUT_EXTERNO)
+        resp.raise_for_status()
+        body = resp.json()
+        tfa = body.get("tfa", {})
+        titulo = tfa.get("normalizedtitle", "")
+        extracto = tfa.get("extract", "")
+        if titulo and extracto:
+            texto = f"📚 {titulo}: {extracto[:300]}"
+        else:
+            texto = f"📚 {str(body)[:300]}"
+        return texto, url
+    except http_client.Timeout:
+        return "[Fallback] Wikipedia no respondió a tiempo.", url + " (timeout)"
+    except http_client.RequestException as exc:
+        logger.warning("Wikipedia API error: %s", exc)
+        return "[Fallback] Wikipedia no está disponible.", url + " (error)"
+
+
+def _obtener_inteligencia_por_rol(rol: str) -> tuple[str | None, str, str]:
+    """Selecciona la API externa según el rol del agente.
+
+    Retorna (texto, fuente_url, tono).
+    """
+    if rol in _ROLES_ADVICE:
+        texto, fuente = _obtener_advice()
+        return texto, fuente, "empático"
+    if rol in _ROLES_WIKIPEDIA:
+        texto, fuente = _obtener_wikipedia()
+        return texto, fuente, "profesional"
+    # Default: humor geek
+    texto, fuente = _obtener_joke()
+    return texto, fuente, "divertido"
+
 
 @router.get("/briefing/{nombre}")
 def api_briefing(nombre: str, _key: str = Depends(verificar_api_key)):
-    """Combina datos locales del agente con inteligencia de una API pública externa."""
+    """Combina datos locales del agente con inteligencia externa por rol.
+
+    Cada rol recibe un tipo de inteligencia distinta:
+      • guardián/espía  → Advice Slip (consejos)
+      • analista/admin   → Wikipedia (cultura general)
+      • explorador/otros → JokeAPI (humor geek)
+
+    Si el agente tiene misiones de seguridad, delega a seguridad_service.
+    """
     datos = despertar_agente(nombre)
     if datos is None:
         raise HTTPException(404, f"Agente '{nombre}' no encontrado")
 
     misiones = buscar_misiones_agente(nombre)
     pendientes = [m for m in misiones if m["estado"] == "pendiente"]
+    en_curso = [m for m in misiones if m["estado"] == "en_curso"]
     completadas = [m for m in misiones if m["estado"] == "completada"]
 
-    # Inteligencia externa con manejo de fallos
-    inteligencia_externa = None
-    fuente_externa = EXTERNAL_API_URL
-    try:
-        resp = http_client.get(EXTERNAL_API_URL, timeout=TIMEOUT_EXTERNO)
-        resp.raise_for_status()
-        body = resp.json()
-        # Useless Facts devuelve {"id": "...", "text": "...", "source": "..."}
-        inteligencia_externa = body.get("text", str(body))
-    except http_client.Timeout:
-        logger.warning("Briefing %s — API externa timeout (%s)", nombre, EXTERNAL_API_URL)
-        inteligencia_externa = "[Fallback] La fuente de inteligencia no respondió a tiempo."
-        fuente_externa += " (timeout)"
-    except http_client.RequestException as exc:
-        logger.warning("Briefing %s — API externa error: %s", nombre, exc)
-        inteligencia_externa = "[Fallback] La fuente de inteligencia no está disponible."
-        fuente_externa += " (error)"
+    # Inteligencia externa según rol
+    inteligencia_externa, fuente_externa, tono = _obtener_inteligencia_por_rol(datos["rol"])
 
-    logger.info("Briefing generado | agente=%s", nombre)
-
-    return {
+    respuesta = {
         "agente": {
             "nombre": datos["nombre"],
             "rol": datos["rol"],
@@ -60,8 +137,36 @@ def api_briefing(nombre: str, _key: str = Depends(verificar_api_key)):
         "resumen_misiones": {
             "total": len(misiones),
             "pendientes": len(pendientes),
+            "en_curso": len(en_curso),
             "completadas": len(completadas),
         },
         "inteligencia_externa": inteligencia_externa,
         "fuente_externa": fuente_externa,
+        "tono": tono,
     }
+
+    # Detectar contexto de seguridad en misiones activas (pendientes + en_curso)
+    misiones_activas = pendientes + en_curso
+    misiones_seguridad = [m for m in misiones_activas if es_mision_seguridad(m)]
+
+    if misiones_seguridad:
+        logger.info(
+            "Briefing seguridad activado | agente=%s misiones_seguridad=%d",
+            nombre, len(misiones_seguridad),
+        )
+        respuesta["inteligencia_seguridad"] = obtener_inteligencia_seguridad()
+        respuesta["inteligencia_seguridad"]["misiones_analizadas"] = [
+            m["titulo"] for m in misiones_seguridad
+        ]
+
+        # Auto-completar misiones de seguridad tras el escaneo
+        resultado = auto_completar_misiones_seguridad(datos, misiones_seguridad)
+        respuesta["inteligencia_seguridad"]["misiones_auto_completadas"] = resultado["misiones_auto_completadas"]
+        if resultado["misiones_sin_energia"]:
+            respuesta["inteligencia_seguridad"]["misiones_sin_energia"] = resultado["misiones_sin_energia"]
+        respuesta["agente"]["energia"] = resultado["energia_final"]
+        respuesta["agente"]["tipo_agente"] = resultado["tipo_agente"]
+
+    logger.info("Briefing generado | agente=%s rol=%s tono=%s seguridad=%s", nombre, datos["rol"], tono, bool(misiones_seguridad))
+
+    return respuesta

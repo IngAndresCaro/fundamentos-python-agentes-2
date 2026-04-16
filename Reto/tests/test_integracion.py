@@ -95,10 +95,11 @@ class TestBriefing:
         )
 
         # Mock de la API externa (requests se importa como http_client en briefing_service)
+        # espía → Advice Slip con formato {"slip": {"advice": "..."}}
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.raise_for_status = MagicMock()
-        mock_resp.json.return_value = {"text": "Dato secreto mockeado", "source": "test"}
+        mock_resp.json.return_value = {"slip": {"advice": "Dato secreto mockeado"}}
 
         with patch("service.briefing_service.http_client.get", return_value=mock_resp):
             r = client.get(f"/api/briefing/{nombre}", headers=HEADERS)
@@ -118,7 +119,8 @@ class TestBriefing:
         assert "completadas" in data["resumen_misiones"]
 
         assert "inteligencia_externa" in data
-        assert data["inteligencia_externa"] == "Dato secreto mockeado"
+        assert data["inteligencia_externa"] == "💡 Dato secreto mockeado"
+        assert data["tono"] == "empático"
 
         assert "fuente_externa" in data
 
@@ -196,10 +198,11 @@ class TestFlujoCompletoR5:
         assert data["tipo_agente"] == "PseudoAgente"
 
         # Paso 5: briefing (con mock de API externa)
+        # explorador → JokeAPI con formato {"joke": "..."}
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.raise_for_status = MagicMock()
-        mock_resp.json.return_value = {"text": "Hecho curioso de prueba"}
+        mock_resp.json.return_value = {"joke": "Hecho curioso de prueba"}
 
         with patch("service.briefing_service.http_client.get", return_value=mock_resp):
             r = client.get(f"/api/briefing/{agente}", headers=HEADERS)
