@@ -725,9 +725,30 @@ DASHBOARD_HTML = """
         `;
       }}
 
+      // ── Bloque auto-completar misiones para agentes admin ──
+      if (b.auto_completadas) {{
+        const ac = b.auto_completadas;
+        let adminAutoHtml = '';
+        if (ac.misiones_completadas && ac.misiones_completadas.length > 0) {{
+          adminAutoHtml += `<div style="margin-bottom:0.3rem">${{ac.misiones_completadas.map(t => `<span style="display:inline-block;background:#0a2a0a;border:1px solid #00ff99;border-radius:3px;padding:0.1rem 0.4rem;margin:0.1rem;font-size:0.75rem">✅ ${{t}}</span>`).join('')}}</div>`;
+        }}
+        if (ac.misiones_sin_energia && ac.misiones_sin_energia.length > 0) {{
+          adminAutoHtml += `<div>${{ac.misiones_sin_energia.map(t => `<span style="display:inline-block;background:#2a1a0a;border:1px solid #ffaa00;border-radius:3px;padding:0.1rem 0.4rem;margin:0.1rem;font-size:0.75rem">⚠️ ${{t}}</span>`).join('')}}</div>`;
+        }}
+        html += `
+          <div style="background:#0a1a0a;border:1px solid #00ff99;border-radius:4px;padding:0.6rem;margin-bottom:0.4rem">
+            <b style="color:#00ff99">⚡ Auto-completar (${{ac.tipo_agente || 'AgenteAdmin'}})</b><br>
+            <span style="font-size:0.75rem;color:#888">El agente admin ejecutó sus misiones pendientes al recibir el briefing.</span>
+            <div style="margin-top:0.3rem">${{adminAutoHtml}}</div>
+          </div>
+        `;
+      }}
+
       container.innerHTML = html;
-      // Refrescar oficina si se completaron misiones (Smit cambia de zona)
-      if (b.inteligencia_seguridad && b.inteligencia_seguridad.misiones_auto_completadas && b.inteligencia_seguridad.misiones_auto_completadas.length > 0) {{
+      // Refrescar oficina si se completaron misiones (Smit o Admin)
+      const smitAutoCompleted = b.inteligencia_seguridad && b.inteligencia_seguridad.misiones_auto_completadas && b.inteligencia_seguridad.misiones_auto_completadas.length > 0;
+      const adminAutoCompleted = b.auto_completadas && b.auto_completadas.misiones_completadas && b.auto_completadas.misiones_completadas.length > 0;
+      if (smitAutoCompleted || adminAutoCompleted) {{
         refreshOffice();
       }}
     }} catch (e) {{

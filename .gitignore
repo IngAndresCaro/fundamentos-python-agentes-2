@@ -1,3 +1,7 @@
+# Variables de entorno (secretos — nunca versionar)
+.env
+!.env.example
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

@@ -17,7 +17,13 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from config.config import API_ADVICE_URL, API_JOKE_URL, API_WIKIPEDIA_URL, TIMEOUT_EXTERNO
 from src.auth import verificar_api_key
-from repository.db import buscar_misiones_agente, despertar_agente
+from agentes.agente import AgenteAdmin, PseudoAgente
+from repository.db import (
+    actualizar_energia_agente,
+    buscar_misiones_agente,
+    completar_mision,
+    despertar_agente,
+)
 from service.seguridad_service import (
     auto_completar_misiones_seguridad,
     es_mision_seguridad,
@@ -105,6 +111,41 @@ def _obtener_inteligencia_por_rol(rol: str) -> tuple[str | None, str, str]:
     return texto, fuente, "divertido"
 
 
+def _auto_completar_misiones(datos_agente: dict, misiones: list[dict]) -> dict:
+    """Auto-completa misiones de un agente admin al consultar briefing.
+
+    Usa polimorfismo R2: AgenteAdmin paga mitad de energía.
+    """
+    if datos_agente["rol"] == "admin":
+        agente = AgenteAdmin(nombre=datos_agente["nombre"], energia=datos_agente["energia"])
+    else:
+        agente = PseudoAgente(nombre=datos_agente["nombre"], energia=datos_agente["energia"])
+
+    completadas = []
+    sin_energia = []
+    for m in misiones:
+        if m["estado"] == "completada":
+            continue
+        msg = agente.consumir_energia(m["energia_requerida"])
+        if "insuficiente" in msg.lower():
+            sin_energia.append(m["titulo"])
+            continue
+        actualizar_energia_agente(agente.nombre, agente.tokens)
+        completar_mision(m["id"])
+        completadas.append(m["titulo"])
+        logger.info(
+            "Misión auto-completada | agente=%s id=%d titulo=%s energia_restante=%d",
+            agente.nombre, m["id"], m["titulo"], agente.tokens,
+        )
+
+    return {
+        "misiones_auto_completadas": completadas,
+        "misiones_sin_energia": sin_energia,
+        "energia_final": agente.tokens,
+        "tipo_agente": type(agente).__name__,
+    }
+
+
 @router.get("/briefing/{nombre}")
 def api_briefing(nombre: str, _key: str = Depends(verificar_api_key)):
     """Combina datos locales del agente con inteligencia externa por rol.
@@ -166,6 +207,25 @@ def api_briefing(nombre: str, _key: str = Depends(verificar_api_key)):
             respuesta["inteligencia_seguridad"]["misiones_sin_energia"] = resultado["misiones_sin_energia"]
         respuesta["agente"]["energia"] = resultado["energia_final"]
         respuesta["agente"]["tipo_agente"] = resultado["tipo_agente"]
+
+    # Auto-completar misiones regulares (no de seguridad) para agentes admin
+    misiones_regulares = [m for m in misiones_activas if not es_mision_seguridad(m)]
+    if datos["rol"] == "admin" and misiones_regulares:
+        energia_actual = respuesta["agente"].get("energia", datos["energia"])
+        datos_para_auto = {**datos, "energia": energia_actual}
+        resultado_admin = _auto_completar_misiones(datos_para_auto, misiones_regulares)
+        respuesta["auto_completadas"] = {
+            "misiones_completadas": resultado_admin["misiones_auto_completadas"],
+            "tipo_agente": resultado_admin["tipo_agente"],
+        }
+        if resultado_admin["misiones_sin_energia"]:
+            respuesta["auto_completadas"]["misiones_sin_energia"] = resultado_admin["misiones_sin_energia"]
+        respuesta["agente"]["energia"] = resultado_admin["energia_final"]
+        respuesta["agente"]["tipo_agente"] = resultado_admin["tipo_agente"]
+        logger.info(
+            "Admin auto-completó %d misiones | agente=%s energia_final=%d",
+            len(resultado_admin["misiones_auto_completadas"]), nombre, resultado_admin["energia_final"],
+        )
 
     logger.info("Briefing generado | agente=%s rol=%s tono=%s seguridad=%s", nombre, datos["rol"], tono, bool(misiones_seguridad))
 
