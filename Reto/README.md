@@ -414,6 +414,20 @@ Se añadieron `@field_validator` en los modelos de entrada para validar roles, p
 
 ---
 
+## Pistas de investigación — Qué es cada una y dónde se usó
+
+| Pista de investigación | Qué es | ¿Se usó? | Dónde |
+|------------------------|--------|----------|-------|
+| `"FastAPI api key header dependency"` | Cómo crear una dependencia (`Depends`) en FastAPI que lee un header personalizado (`X-API-KEY`) para proteger endpoints. | ✅ Sí | `src/auth.py` → función `verificar_api_key` inyectada con `Depends` en todos los endpoints `/api/`. |
+| `"fastapi Depends header authentication"` | Mecanismo de inyección de dependencias de FastAPI (`Depends`) combinado con `Header()` para extraer y validar headers HTTP. | ✅ Sí | `src/auth.py` → `x_api_key: str = Header(default="")` como parámetro de la dependencia. |
+| `"python-dotenv load_dotenv"` | Librería que carga variables desde un archivo `.env` al entorno del proceso (`os.environ`), evitando hardcodear secretos en el código. | ✅ Sí | `config/config.py` → `from dotenv import load_dotenv` + `load_dotenv(dotenv_path=...)`. |
+| `"os.environ getenv default value"` | Función `os.getenv("CLAVE", "valor_por_defecto")` del módulo estándar para leer variables de entorno con fallback seguro. | ✅ Sí | `config/config.py` → `os.getenv("AGENCIA_API_KEY", "...")` para todas las variables. |
+| `"python logging basicConfig levels formatter"` | Módulo estándar `logging` con `basicConfig()` para configurar niveles (INFO/WARNING/ERROR), formato de fecha y mensaje estructurado. | ✅ Sí | `main.py` → `logging.basicConfig(level=INFO, format="%(asctime)s [%(levelname)s] %(message)s")`. |
+| `"requests timeout exception handling"` | Parámetro `timeout` en `requests.get(url, timeout=N)` y manejo de excepciones (`Timeout`, `ConnectionError`, `RequestException`) para no bloquear el servidor. | ✅ Sí | `service/briefing_service.py` → `requests.get(url, timeout=3)` con `try/except` y fallback. |
+| `"public APIs list no auth github"` | Repositorios en GitHub que listan APIs públicas gratuitas sin autenticación (JSON). Se usó para elegir las fuentes de inteligencia externa. | ✅ Sí | 3 APIs: [Advice Slip](https://api.adviceslip.com/), [JokeAPI](https://v2.jokeapi.dev/), [Wikipedia REST](https://en.wikipedia.org/api/rest_v1/). |
+| `"pydantic v2 field_validator"` | Decorador `@field_validator` de Pydantic v2 para validar campos individuales de un `BaseModel` antes de que lleguen a la lógica de negocio. | ✅ Sí | `models/agente.py` → validadores de `rol`, `energia_requerida > 0` y `prioridad`. |
+| `"fastapi TestClient pytest"` | Clase `TestClient` de FastAPI que permite testear endpoints sin levantar servidor real, combinada con `pytest` para tests automatizados. | ✅ Sí | `tests/test_integracion.py` → 9 tests con `TestClient(app)` + `unittest.mock.patch`. |
+
 ## Referencias consultadas
 
 - [FastAPI — Dependencies](https://fastapi.tiangolo.com/tutorial/dependencies/)
