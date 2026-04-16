@@ -83,6 +83,7 @@ DASHBOARD_HTML = """
       display: flex;
       flex-direction: column;
       padding: 0.6rem;
+      overflow: hidden;
     }}
     .zone-label {{
       font-size: 0.7rem;
@@ -112,11 +113,11 @@ DASHBOARD_HTML = """
 
     /* ── Agents ── */
     .agent {{
-      position: absolute;
       width: 52px;
       text-align: center;
       cursor: default;
       transition: transform 0.15s;
+      flex-shrink: 0;
     }}
     .agent:hover {{ transform: scale(1.15); }}
     .agent-icon {{
@@ -258,27 +259,29 @@ DASHBOARD_HTML = """
         <button onclick="openModal('crear-mision')">📋 Nueva misión</button>
         <button onclick="openModal('enviar-mensaje')">💬 Enviar mensaje</button>
         <button onclick="openModal('completar-mision')">✅ Completar misión</button>
+        <button onclick="openModal('eliminar-agente')">🗑️ Eliminar agente</button>
       </div>
 
       <div class="sep"></div>
       <h2>Consultas</h2>
       <button onclick="openModal('ver-misiones')">🔍 Misiones de agente</button>
       <button onclick="openModal('ver-mensajes')">📨 Mensajes de agente</button>
+      <button onclick="openModal('ver-briefing')">🗂️ Briefing de agente</button>
     </div>
 
     <!-- ── Office ── -->
     <div class="office" id="office">
       <div class="zone zone-trabajando">
         <span class="zone-label">💼 Trabajando</span>
-        <div id="zone-trabajando-agents" style="position:relative;flex:1;"></div>
+        <div id="zone-trabajando-agents" style="display:flex;flex-wrap:wrap;gap:8px;flex:1;align-content:flex-start;overflow-y:auto;"></div>
       </div>
       <div class="zone zone-holgazaneando">
         <span class="zone-label">😴 Holgazaneando</span>
-        <div id="zone-holgazaneando-agents" style="position:relative;flex:1;"></div>
+        <div id="zone-holgazaneando-agents" style="display:flex;flex-wrap:wrap;gap:8px;flex:1;align-content:flex-start;overflow-y:auto;"></div>
       </div>
       <div class="zone zone-recreandose">
         <span class="zone-label">🎮 Recreándose</span>
-        <div id="zone-recreandose-agents" style="position:relative;flex:1;"></div>
+        <div id="zone-recreandose-agents" style="display:flex;flex-wrap:wrap;gap:8px;flex:1;align-content:flex-start;overflow-y:auto;"></div>
       </div>
 
       <!-- Detail panel -->
@@ -398,6 +401,34 @@ DASHBOARD_HTML = """
     </div>
   </div>
 
+  <!-- Briefing de agente -->
+  <div class="modal-bg" id="modal-ver-briefing">
+    <div class="modal">
+      <h2>🗂️ Briefing de agente</h2>
+      <label>Nombre del agente</label>
+      <input id="vb-agente" placeholder="Nombre del agente">
+      <div class="btn-row">
+        <button class="btn btn-cancel" onclick="closeModal('ver-briefing')">Cancelar</button>
+        <button class="btn btn-ok" onclick="submitVerBriefing()">Generar briefing</button>
+      </div>
+      <div id="vb-resultado" style="margin-top:1rem;font-size:0.82rem;color:#aaa;"></div>
+    </div>
+  </div>
+
+  <!-- Eliminar agente -->
+  <div class="modal-bg" id="modal-eliminar-agente">
+    <div class="modal">
+      <h2>🗑️ Eliminar agente</h2>
+      <p style="color:#aaa;font-size:0.82rem;margin-bottom:0.8rem">Agentes con misiones activas (pendiente/en_curso) no se pueden eliminar.</p>
+      <div id="ea-lista" style="margin-bottom:1rem;max-height:300px;overflow-y:auto;font-size:0.85rem;">
+        <i style="color:#666">Cargando agentes...</i>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-cancel" onclick="closeModal('eliminar-agente')">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast -->
   <div class="toast" id="toast"></div>
 
@@ -416,6 +447,7 @@ DASHBOARD_HTML = """
 
   function openModal(name) {{
     document.getElementById('modal-' + name).classList.add('active');
+    if (name === 'eliminar-agente') cargarListaEliminacion();
   }}
   function closeModal(name) {{
     document.getElementById('modal-' + name).classList.remove('active');
@@ -423,7 +455,7 @@ DASHBOARD_HTML = """
 
   // ─── API helpers ───
   async function api(method, path, body) {{
-    const opts = {{ method, headers: {{ 'Content-Type': 'application/json' }} }};
+    const opts = {{ method, headers: {{ 'Content-Type': 'application/json', 'X-API-KEY': '{api_key}' }} }};
     if (body) opts.body = JSON.stringify(body);
     const res = await fetch('/api' + path, opts);
     return {{ status: res.status, data: await res.json() }};
@@ -456,8 +488,6 @@ DASHBOARD_HTML = """
         const dur = 6 + Math.random() * 8;
         const delay = Math.random() * -10;
         el.style.cssText = `
-          left: ${{10 + (i % 5) * 18}}%;
-          top: ${{10 + Math.floor(i / 5) * 40}}%;
           --wander-duration: ${{dur}}s;
           animation-delay: ${{delay}}s;
         `;
@@ -553,7 +583,7 @@ DASHBOARD_HTML = """
   async function submitCompletarMision() {{
     const id = parseInt(document.getElementById('comp-id').value);
     if (!id) return toast('ID requerido', false);
-    const r = await api('PUT', '/misiones/' + id + '/completar');
+    const r = await api('POST', '/misiones/' + id + '/completar');
     if (r.status < 300) {{ toast('Misión completada', true); closeModal('completar-mision'); refreshOffice(); }}
     else toast(r.data.detail || 'Error', false);
   }}
@@ -588,6 +618,76 @@ DASHBOARD_HTML = """
 
   // ─── Init ───
   refreshOffice();
+
+  async function submitVerBriefing() {{
+    const nombre = document.getElementById('vb-agente').value.trim();
+    if (!nombre) return toast('Nombre requerido', false);
+    const container = document.getElementById('vb-resultado');
+    container.innerHTML = '<i>Generando briefing...</i>';
+    try {{
+      const r = await api('GET', '/briefing/' + encodeURIComponent(nombre));
+      if (r.status >= 400) {{ container.innerHTML = `<span style="color:#ff4444">${{r.data.detail || 'Error'}}</span>`; return; }}
+      const b = r.data;
+      container.innerHTML = `
+        <div style="border-bottom:1px solid #222;padding-bottom:0.5rem;margin-bottom:0.5rem">
+          <b style="color:#00ff99">${{b.agente.nombre}}</b> — ${{b.agente.rol}} | Energía: ${{b.agente.energia}}
+        </div>
+        <div style="margin-bottom:0.5rem">
+          📋 Misiones: <b>${{b.resumen_misiones.total}}</b> total |
+          <span style="color:#ffaa00">${{b.resumen_misiones.pendientes}} pendientes</span> |
+          <span style="color:#00ff99">${{b.resumen_misiones.completadas}} completadas</span>
+        </div>
+        <div style="background:#111;border:1px solid #333;border-radius:4px;padding:0.6rem;margin-bottom:0.4rem">
+          🌐 <b>Inteligencia externa:</b><br>
+          <i>${{b.inteligencia_externa}}</i>
+        </div>
+        <div style="font-size:0.7rem;color:#555">Fuente: ${{b.fuente_externa}}</div>
+      `;
+    }} catch (e) {{
+      container.innerHTML = '<span style="color:#ff4444">Error de conexión</span>';
+    }}
+  }}
+
+  async function cargarListaEliminacion() {{
+    const container = document.getElementById('ea-lista');
+    container.innerHTML = '<i style="color:#666">Cargando agentes...</i>';
+    try {{
+      const r = await api('GET', '/agentes');
+      if (!r.data || r.data.length === 0) {{ container.innerHTML = '<i>No hay agentes</i>'; return; }}
+      const checks = await Promise.all(r.data.map(async ag => {{
+        const estado = await api('GET', '/agentes/' + encodeURIComponent(ag.nombre) + '/estado-eliminacion');
+        return {{ ...ag, ...estado.data }};
+      }}));
+      container.innerHTML = checks.map(ag => {{
+        const icon = ICONS[ag.rol] || '🤖';
+        if (!ag.puede_eliminar) {{
+          const lista = ag.misiones_activas.map(m => m.titulo).join(', ');
+          return `<div style="padding:0.5rem;margin-bottom:0.4rem;background:#1a1a2e;border:1px solid #333;border-radius:4px;display:flex;justify-content:space-between;align-items:center">
+            <span>${{icon}} <b>${{ag.nombre}}</b> <span style="color:#888">${{ag.rol}}</span></span>
+            <span style="color:#ff4444;font-size:0.75rem" title="${{lista}}">🔒 Con misiones activas</span>
+          </div>`;
+        }}
+        return `<div style="padding:0.5rem;margin-bottom:0.4rem;background:#1a1a2e;border:1px solid #333;border-radius:4px;display:flex;justify-content:space-between;align-items:center">
+          <span>${{icon}} <b>${{ag.nombre}}</b> <span style="color:#888">${{ag.rol}} | ⚡${{ag.energia}}</span></span>
+          <button class="btn btn-cancel" style="padding:0.2rem 0.6rem;font-size:0.75rem" onclick="confirmarEliminar('${{ag.nombre}}')">🗑️ Eliminar</button>
+        </div>`;
+      }}).join('');
+    }} catch (e) {{
+      container.innerHTML = '<span style="color:#ff4444">Error cargando agentes</span>';
+    }}
+  }}
+
+  async function confirmarEliminar(nombre) {{
+    if (!confirm('¿Eliminar a ' + nombre + '? Se borrarán también sus mensajes y misiones completadas.')) return;
+    const r = await api('DELETE', '/agentes/' + encodeURIComponent(nombre));
+    if (r.status < 300) {{
+      toast('Agente ' + nombre + ' eliminado', true);
+      cargarListaEliminacion();
+      refreshOffice();
+    }} else {{
+      toast(r.data.detail || 'Error al eliminar', false);
+    }}
+  }}
 </script>
 
 </body>

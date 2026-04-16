@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from agentes.agente import AgenteAdmin, PseudoAgente
 from models.agente import CrearMisionBody
@@ -12,6 +12,7 @@ from repository.db import (
     despertar_agente,
     obtener_mision,
 )
+from src.auth import verificar_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ def reconstruir_agente(nombre: str) -> PseudoAgente | None:
 
 
 @router.post("/misiones", status_code=201)
-def api_crear_mision(body: CrearMisionBody):
+def api_crear_mision(body: CrearMisionBody, _key: str = Depends(verificar_api_key)):
     mision_id = crear_mision(
         body.titulo,
         body.descripcion,
@@ -50,21 +51,21 @@ def api_crear_mision(body: CrearMisionBody):
 
 
 @router.get("/misiones/{nombre_agente}")
-def api_misiones_agente(nombre_agente: str):
+def api_misiones_agente(nombre_agente: str, _key: str = Depends(verificar_api_key)):
     return buscar_misiones_agente(nombre_agente)
 
 
 @router.get("/misiones/detalle/{mision_id}")
-def api_obtener_mision(mision_id: int):
+def api_obtener_mision(mision_id: int, _key: str = Depends(verificar_api_key)):
     mision = obtener_mision(mision_id)
     if mision is None:
         raise HTTPException(404, f"Misión #{mision_id} no encontrada")
     return mision
 
 
-@router.put("/misiones/{mision_id}/completar")
-def api_completar_mision(mision_id: int):
-    """R2: Completa una misión usando la clase de dominio para descontar energía.
+@router.post("/misiones/{mision_id}/completar")
+def api_completar_mision(mision_id: int, _key: str = Depends(verificar_api_key)):
+    """Completa una misión usando la clase de dominio para descontar energía.
 
     1. Lee la misión de la DB.
     2. Reconstruye la instancia de dominio (PseudoAgente o AgenteAdmin).

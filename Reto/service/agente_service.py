@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from agentes.agente import AgenteAdmin, PseudoAgente
 from models.agente import CrearAgenteBody, EnviarMensajeBody
@@ -10,7 +10,10 @@ from repository.db import (
     despertar_agente,
     enviar_mensaje,
     leer_mensajes,
+    eliminar_agente,
+    misiones_activas_agente,
 )
+from src.auth import verificar_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -32,12 +35,12 @@ def reconstruir_agente(nombre: str) -> PseudoAgente | None:
 
 
 @router.get("/agentes")
-def api_listar_agentes():
+def api_listar_agentes(_key: str = Depends(verificar_api_key)):
     return listar_agentes()
 
 
 @router.get("/agentes/{nombre}")
-def api_obtener_agente(nombre: str):
+def api_obtener_agente(nombre: str, _key: str = Depends(verificar_api_key)):
     agente = reconstruir_agente(nombre)
     if agente is None:
         raise HTTPException(404, f"Agente '{nombre}' no encontrado")
@@ -48,7 +51,7 @@ def api_obtener_agente(nombre: str):
 
 
 @router.post("/agentes", status_code=201)
-def api_crear_agente(body: CrearAgenteBody):
+def api_crear_agente(body: CrearAgenteBody, _key: str = Depends(verificar_api_key)):
     resultado = registrar_agente(body.nombre, body.rol, body.energia)
     if "Error" in resultado:
         raise HTTPException(409, resultado)
@@ -57,7 +60,7 @@ def api_crear_agente(body: CrearAgenteBody):
 
 
 @router.post("/mensajes", status_code=201)
-def api_enviar_mensaje(body: EnviarMensajeBody):
+def api_enviar_mensaje(body: EnviarMensajeBody, _key: str = Depends(verificar_api_key)):
     resultado = enviar_mensaje(body.remitente, body.destinatario, body.contenido)
     if "Error" in resultado:
         raise HTTPException(404, resultado)
@@ -66,5 +69,22 @@ def api_enviar_mensaje(body: EnviarMensajeBody):
 
 
 @router.get("/mensajes/{nombre_agente}")
-def api_leer_mensajes(nombre_agente: str):
+def api_leer_mensajes(nombre_agente: str, _key: str = Depends(verificar_api_key)):
     return leer_mensajes(nombre_agente)
+
+
+@router.get("/agentes/{nombre}/estado-eliminacion")
+def api_estado_eliminacion(nombre: str, _key: str = Depends(verificar_api_key)):
+    """Devuelve si el agente puede eliminarse (sin misiones activas)."""
+    activas = misiones_activas_agente(nombre)
+    return {"nombre": nombre, "puede_eliminar": len(activas) == 0, "misiones_activas": activas}
+
+
+@router.delete("/agentes/{nombre}")
+def api_eliminar_agente(nombre: str, _key: str = Depends(verificar_api_key)):
+    resultado = eliminar_agente(nombre)
+    if "Error" in resultado:
+        code = 404 if "no encontrado" in resultado else 409
+        raise HTTPException(code, resultado)
+    logger.info("Agente eliminado | nombre=%s", nombre)
+    return {"mensaje": resultado}

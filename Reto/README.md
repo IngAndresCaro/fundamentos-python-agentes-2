@@ -109,13 +109,17 @@ Reto/
 │   ├── __init__.py
 │   ├── agente_service.py          # CRUD de agentes + mensajes (/api/agentes, /api/mensajes)
 │   ├── mision_service.py          # CRUD de misiones + completar con R2 (/api/misiones)
+│   ├── briefing_service.py        # Briefing con API externa (§5.2) (/api/briefing)
 │   └── cliente_service.py         # Login/logout con formulario HTML (/login, /logout)
 │
-└── src/                           # 🎨 Presentación — HTML, sesiones
-    ├── __init__.py
-    ├── dashboard.py               # Template HTML: oficina animada con zonas y agentes
-    ├── cliente.py                  # Template HTML: formulario de login
-    └── session.py                 # Gestión de sesiones en memoria (token → rol)
+├── src/                           # 🎨 Presentación — HTML, sesiones
+│   ├── __init__.py
+│   ├── auth.py                    # Dependencia verificar_api_key (§5.1)
+│   ├── dashboard.py               # Template HTML: oficina animada con zonas y agentes
+│   ├── cliente.py                  # Template HTML: formulario de login
+│   └── session.py                 # Gestión de sesiones en memoria (token → rol)
+│
+└── cliente.py                     # R5: Script HTTP de demostración end-to-end
 ```
 
 ### Separación `agentes/` vs `models/`
@@ -183,25 +187,25 @@ El flag `--reload` reinicia el servidor automáticamente al guardar cambios. Dej
 
 | Método | Ruta | Protegido | Descripción |
 |--------|------|-----------|-------------|
-| `GET` | `/api/agentes` | Sí (sesión) | Lista todos los agentes |
-| `GET` | `/api/agentes/{nombre}` | Sí (sesión) | Detalle de un agente (incluye `tipo_agente` y `es_admin`) |
-| `POST` | `/api/agentes` | Sí (sesión) | Crea un agente nuevo |
+| `GET` | `/api/agentes` | Sí (sesión / API key) | Lista todos los agentes |
+| `GET` | `/api/agentes/{nombre}` | Sí (sesión / API key) | Detalle de un agente (incluye `tipo_agente` y `es_admin`) |
+| `POST` | `/api/agentes` | Sí (API key) | Crea un agente nuevo |
 
 ### Mensajes (`/api/mensajes`)
 
 | Método | Ruta | Protegido | Descripción |
 |--------|------|-----------|-------------|
-| `POST` | `/api/mensajes` | Sí (sesión) | Envía un mensaje entre agentes |
-| `GET` | `/api/mensajes/{nombre_agente}` | Sí (sesión) | Bandeja de mensajes de un agente |
+| `POST` | `/api/mensajes` | Sí (API key) | Envía un mensaje entre agentes |
+| `GET` | `/api/mensajes/{nombre_agente}` | Sí (sesión / API key) | Bandeja de mensajes de un agente |
 
 ### Misiones (`/api/misiones`)
 
 | Método | Ruta | Protegido | Descripción |
 |--------|------|-----------|-------------|
-| `POST` | `/api/misiones` | Sí (sesión) | Crea una misión asignada a un agente |
-| `GET` | `/api/misiones/{nombre_agente}` | Sí (sesión) | Misiones asignadas a un agente |
-| `GET` | `/api/misiones/detalle/{mision_id}` | Sí (sesión) | Detalle de una misión por ID |
-| `PUT` | `/api/misiones/{mision_id}/completar` | Sí (sesión) | Completa una misión (R2: descuenta energía con polimorfismo) |
+| `POST` | `/api/misiones` | Sí (API key) | Crea una misión asignada a un agente |
+| `GET` | `/api/misiones/{nombre_agente}` | Sí (sesión / API key) | Misiones asignadas a un agente |
+| `GET` | `/api/misiones/detalle/{mision_id}` | Sí (sesión / API key) | Detalle de una misión por ID |
+| `POST` | `/api/misiones/{mision_id}/completar` | Sí (API key) | Completa una misión (R2: descuenta energía con polimorfismo) |
 
 ---
 
@@ -223,7 +227,7 @@ Esto garantiza que `isinstance(agente, AgenteAdmin)` sea `True` cuando correspon
 - **PseudoAgente**: descuenta el 100% de la energía requerida.
 - **AgenteAdmin**: descuenta solo el 50% (override en la subclase).
 
-Al completar una misión (`PUT /api/misiones/{id}/completar`):
+Al completar una misión (`POST /api/misiones/{id}/completar`):
 1. Se lee la misión de la DB.
 2. Se reconstruye la instancia de dominio del agente asignado.
 3. Se llama a `agente.consumir_energia(energia_requerida)` — **la clase decide el costo**.
@@ -259,19 +263,27 @@ Se agregaron dos columnas extra al esquema mínimo:
 - **`updated_at TEXT`** — Registra cuándo cambió el estado por última vez (ISO 8601). Complementa a `created_at` para saber no solo cuándo se creó la misión sino cuándo se completó o modificó. Útil para auditoría y para mostrar timestamps en el dashboard.
 
 ### 2. API pública elegida
-<!-- TODO: Justifica aquí cuál API elegiste, por qué encaja con la narrativa y qué añade al briefing -->
+
+Se eligió la API de **Useless Facts** (`https://uselessfacts.jsph.pl/api/v2/facts/random`). Encaja con la narrativa de la agencia porque simula un canal de "inteligencia externa": cada briefing incluye un dato curioso del mundo real, como si el agente recibiera información de una fuente externa de inteligencia. Es una API pública sin autenticación, gratuita, con respuestas rápidas en JSON, lo que la hace ideal para un entorno de desarrollo y demostración.
 
 ### 3. Estrategia de resiliencia
-<!-- TODO: Justifica aquí qué pasa cuando la API externa falla o tarda -->
+
+Se implementó un timeout de **3 segundos** en la llamada a la API externa con `requests.get(..., timeout=3)`. Si la API falla (timeout, error de red, SSL, status != 200), se captura la excepción con `try/except` y se devuelve un mensaje de fallback: `"[Fallback] La fuente de inteligencia no está disponible."`, junto con la fuente marcada como `(error)`. Se registra un `logger.warning(...)` para auditar el fallo. De esta forma, el endpoint `/api/briefing/{nombre}` **siempre responde** con los datos locales del agente, sin dejar que un tercero cuelgue el servidor.
 
 ---
 
-## Requerimientos pendientes
+## Estado de requerimientos
 
-- [ ] **5.1** Autenticación con API key (`X-API-KEY` header) para endpoints de escritura
-- [ ] **5.2** Endpoint `GET /briefing/{nombre}` con integración de API pública externa
-- [ ] **R5** `cliente.py` — script de demostración end-to-end con `requests`
-- [ ] Datos semilla: 3 agentes, 5 mensajes, 3 misiones en estados distintos
+- [x] **R1** Arquitectura modular (agentes/, models/, repository/, config/, service/, src/)
+- [x] **R2** Clases de dominio reutilizadas (`reconstruir_agente`, `isinstance`, polimorfismo)
+- [x] **R3** Persistencia SQLite (agentes, mensajes, misiones + columnas extra)
+- [x] **R4** API con FastAPI — todos los endpoints en `/api/` con API key
+- [x] **R5** `cliente.py` — script de demostración end-to-end
+- [x] **5.1** Autenticación con API key (`X-API-KEY` header) para endpoints de escritura
+- [x] **5.2** Endpoint `GET /api/briefing/{nombre}` con integración de API pública externa
+- [x] **5.3** Configuración con variables de entorno (`.env` + `config.py`)
+- [x] **5.4** Observabilidad con `logging` (niveles INFO/WARNING/ERROR)
+- [x] Datos semilla: 6 agentes, 8 mensajes, 4 misiones en 3 estados distintos
 - [ ] Evidencias visuales (capturas Swagger: 401 sin key, 201 con key, briefing)
 
 ---
@@ -288,5 +300,65 @@ deactivate
 
 ---
 
+### Briefing (`/api/briefing`)
+
+| Método | Ruta | Protegido | Descripción |
+|--------|------|-----------|-------------|
+| `GET` | `/api/briefing/{nombre}` | No | Briefing: datos del agente + resumen misiones + inteligencia externa |
+
+---
+
+## Ejecutar cliente de demostración (R5)
+
+Con el servidor corriendo en otra terminal:
+
+```bash
+# Terminal 1 — servidor
+uvicorn main:app --reload --port 8000
+
+# Terminal 2 — cliente
+python cliente.py
+# o especificando puerto:
+python cliente.py --port 8001
+```
+
+El script ejecuta automáticamente los 6 pasos del guion R5:
+
+1. Verifica que el servidor está vivo (`GET /api/agentes`).
+2. Crea dos agentes con `X-API-KEY` (`POST /api/agentes`).
+3. Crea una misión asignada (`POST /api/misiones`).
+4. Completa la misión (`POST /api/misiones/{id}/completar`).
+5. Consulta el briefing (`GET /api/briefing/{nombre}`).
+6. Envía un mensaje y lee la bandeja (`POST /api/mensajes` + `GET /api/mensajes/{nombre}`).
+
+---
+
+## Ejecutar tests (Reto Eutagógico — pytest)
+
+No necesita servidor corriendo. Los tests usan `TestClient` de FastAPI (in-process):
+
+```bash
+# Desde la carpeta Reto/
+python -m pytest tests/ -v
+```
+
+**9 tests** organizados en 3 clases:
+
+| Clase | Tests | Qué valida |
+|-------|-------|------------|
+| `TestProteccionApiKey` | 4 | Endpoints POST sin `X-API-KEY` → rechazados (agentes, misiones, completar, mensajes) |
+| `TestBriefing` | 3 | Estructura con mock de API externa, fallback cuando falla, 404 si agente no existe |
+| `TestFlujoCompletoR5` | 2 | Circuito completo R5 end-to-end + R2 polimorfismo (admin paga mitad energía) |
+
+La API externa se mockea con `unittest.mock.patch` para que los tests no dependan de red.
+
+---
+
 ## Referencias consultadas
-<!-- TODO: Agrega enlaces a la documentación y artículos que consultaste -->
+
+- [FastAPI — Dependencies](https://fastapi.tiangolo.com/tutorial/dependencies/)
+- [FastAPI — Header Parameters](https://fastapi.tiangolo.com/tutorial/header-params/)
+- [python-dotenv — Documentation](https://saurabh-kumar.com/python-dotenv/)
+- [Python logging — Basic Tutorial](https://docs.python.org/3/howto/logging.html)
+- [Requests — Timeouts](https://requests.readthedocs.io/en/latest/user/advanced/#timeouts)
+- [Useless Facts API](https://uselessfacts.jsph.pl/)

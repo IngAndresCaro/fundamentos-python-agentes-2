@@ -4,9 +4,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
-from config.config import AGENCIA_API_KEY  # noqa: F401 — disponible para otros módulos
+from config.config import AGENCIA_API_KEY
 from repository.db import crear_tablas
 from service.agente_service import router as agente_router
+from service.briefing_service import router as briefing_router
 from service.cliente_service import router as login_router
 from service.mision_service import router as mision_router
 from src.dashboard import DASHBOARD_HTML
@@ -46,6 +47,7 @@ app = FastAPI(
 app.include_router(login_router)
 app.include_router(agente_router)
 app.include_router(mision_router)
+app.include_router(briefing_router)
 
 # Rutas accesibles sin sesión
 _RUTAS_PUBLICAS = {"/login", "/openapi.json"}
@@ -67,6 +69,13 @@ async def verificar_sesion(request: Request, call_next):
     # Permitir rutas públicas sin verificar
     if path in _RUTAS_PUBLICAS or path.startswith("/login"):
         return await call_next(request)
+
+    # Las rutas /api/ pueden autenticarse con API key en vez de sesión
+    if path.startswith("/api/"):
+        api_key = request.headers.get("X-API-KEY", "")
+        if api_key == AGENCIA_API_KEY:
+            return await call_next(request)
+        # Si no tiene API key, sigue el flujo normal (sesión)
 
     token = request.cookies.get("session", "")
 
@@ -93,4 +102,4 @@ def dashboard(request: Request):
     rol = rol_sesion(token) or "invitado"
     admin_display = "block" if rol == "admin" else "none"
     logger.info("GET / — dashboard | rol=%s", rol)
-    return DASHBOARD_HTML.format(rol=rol, admin_display=admin_display)
+    return DASHBOARD_HTML.format(rol=rol, admin_display=admin_display, api_key=AGENCIA_API_KEY)

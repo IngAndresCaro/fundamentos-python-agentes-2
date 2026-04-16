@@ -112,6 +112,39 @@ def listar_agentes() -> list[dict]:
     return [{"nombre": f[0], "rol": f[1], "energia": f[2]} for f in filas]
 
 
+def misiones_activas_agente(nombre: str) -> list[dict]:
+    """Retorna misiones pendientes o en_curso de un agente."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id, titulo, estado FROM misiones WHERE agente_asignado = ? AND estado IN ('pendiente', 'en_curso')",
+        (nombre,),
+    )
+    filas = cursor.fetchall()
+    conn.close()
+    return [{"id": f[0], "titulo": f[1], "estado": f[2]} for f in filas]
+
+
+def eliminar_agente(nombre: str) -> str:
+    """Elimina un agente si no tiene misiones activas (pendiente/en_curso)."""
+    activas = misiones_activas_agente(nombre)
+    if activas:
+        titulos = ", ".join(m["titulo"] for m in activas)
+        return f"[DB] Error: '{nombre}' tiene misiones activas: {titulos}"
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT 1 FROM agentes WHERE nombre = ?", (nombre,))
+    if cursor.fetchone() is None:
+        conn.close()
+        return f"[DB] Error: Agente '{nombre}' no encontrado."
+    cursor.execute("DELETE FROM mensajes WHERE remitente = ? OR destinatario = ?", (nombre, nombre))
+    cursor.execute("DELETE FROM misiones WHERE agente_asignado = ?", (nombre,))
+    cursor.execute("DELETE FROM agentes WHERE nombre = ?", (nombre,))
+    conn.commit()
+    conn.close()
+    return f"[DB] Agente '{nombre}' eliminado."
+
+
 # -----------------------------------------------------------#
 ## Mensajes
 # -----------------------------------------------------------#
