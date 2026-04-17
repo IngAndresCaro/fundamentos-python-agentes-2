@@ -17,9 +17,28 @@ import random
 type Historial = dict[str, str]
 
 # -----------------------------------------------------------#
-## Roles válidos del sistema (mapeados desde .github/agents/)
+## Roles válidos del sistema
+## ─ Scrum: scrum_master, product_owner
+## ─ Gestión: orquestador, admin
+## ─ Análisis: spec
+## ─ Desarrollo: backend, frontend, arquitecto
+## ─ Operaciones: devops, dba, seguridad
+## ─ Calidad: qa
 # -----------------------------------------------------------#
-ROLES_AGENTE = {"orquestador", "spec", "backend", "frontend", "qa", "admin"}
+ROLES_AGENTE = {
+    # Scrum
+    "scrum_master", "product_owner",
+    # Gestión
+    "orquestador", "admin",
+    # Análisis
+    "spec",
+    # Desarrollo
+    "backend", "frontend", "arquitecto",
+    # Operaciones
+    "devops", "dba", "seguridad",
+    # Calidad
+    "qa",
+}
 
 
 # -----------------------------------------------------------#
@@ -197,16 +216,138 @@ class AgenteQA(PseudoAgente):
         return f"[{self.nombre}] Energía consumida (QA): -{costo_real}. Restante: {self.tokens}."
 
 
+# ───────────────────────────────────────────────────────────#
+#  ROLES SCRUM
+# ───────────────────────────────────────────────────────────#
+
+# -----------------------------------------------------------#
+## AgenteScrumMaster
+## Facilita ceremonias, elimina bloqueos, protege al equipo.
+## Consume 30% de energía (facilitación, no ejecución).
+# -----------------------------------------------------------#
+class AgenteScrumMaster(PseudoAgente):
+    """Scrum Master — facilita ceremonias, elimina impedimentos, protege al equipo.
+    Consume solo el 30% de la energía (rol de facilitación)."""
+
+    def consumir_energia(self, cantidad: int) -> str:
+        costo_real = max(1, int(cantidad * 0.3))
+        if costo_real > self.tokens:
+            return f"[{self.nombre}] Energía insuficiente ({self.tokens} disponible, {costo_real} requerida)."
+        self.tokens -= costo_real
+        return f"[{self.nombre}] Energía consumida (Scrum Master): -{costo_real}. Restante: {self.tokens}."
+
+
+# -----------------------------------------------------------#
+## AgenteProductOwner
+## Gestiona backlog, prioriza historias, define criterios de aceptación.
+## Consume 40% de energía (decisión estratégica, no implementación).
+# -----------------------------------------------------------#
+class AgenteProductOwner(PseudoAgente):
+    """Product Owner — gestiona backlog, prioriza y define criterios de aceptación.
+    Consume el 40% de la energía (trabajo de priorización estratégica)."""
+
+    def consumir_energia(self, cantidad: int) -> str:
+        costo_real = max(1, int(cantidad * 0.4))
+        if costo_real > self.tokens:
+            return f"[{self.nombre}] Energía insuficiente ({self.tokens} disponible, {costo_real} requerida)."
+        self.tokens -= costo_real
+        return f"[{self.nombre}] Energía consumida (Product Owner): -{costo_real}. Restante: {self.tokens}."
+
+
+# ───────────────────────────────────────────────────────────#
+#  ROLES TÉCNICOS ESPECIALIZADOS
+# ───────────────────────────────────────────────────────────#
+
+# -----------------------------------------------------------#
+## AgenteArquitecto
+## Diseño de sistema, decisiones técnicas, revisión de arquitectura.
+## Consume 60% de energía (análisis profundo sin implementar).
+# -----------------------------------------------------------#
+class AgenteArquitecto(PseudoAgente):
+    """Arquitecto de Software — diseño de sistema, ADRs, revisión de arquitectura.
+    Consume el 60% de la energía (análisis técnico profundo)."""
+
+    def consumir_energia(self, cantidad: int) -> str:
+        costo_real = max(1, int(cantidad * 0.6))
+        if costo_real > self.tokens:
+            return f"[{self.nombre}] Energía insuficiente ({self.tokens} disponible, {costo_real} requerida)."
+        self.tokens -= costo_real
+        return f"[{self.nombre}] Energía consumida (Arquitecto): -{costo_real}. Restante: {self.tokens}."
+
+
+# -----------------------------------------------------------#
+## AgenteDevOps
+## CI/CD, infraestructura, despliegues, monitoreo.
+## Consume 90% de energía (operaciones críticas de infraestructura).
+# -----------------------------------------------------------#
+class AgenteDevOps(PseudoAgente):
+    """DevOps — CI/CD, infraestructura como código, despliegues y monitoreo.
+    Consume el 90% de la energía (operaciones de infraestructura)."""
+
+    def consumir_energia(self, cantidad: int) -> str:
+        costo_real = max(1, int(cantidad * 0.9))
+        if costo_real > self.tokens:
+            return f"[{self.nombre}] Energía insuficiente ({self.tokens} disponible, {costo_real} requerida)."
+        self.tokens -= costo_real
+        return f"[{self.nombre}] Energía consumida (DevOps): -{costo_real}. Restante: {self.tokens}."
+
+
+# -----------------------------------------------------------#
+## AgenteDBA
+## Modelado de datos, optimización de queries, migraciones.
+## Consume 80% de energía (trabajo intensivo con datos).
+# -----------------------------------------------------------#
+class AgenteDBA(PseudoAgente):
+    """DBA — modelado de datos, optimización de queries, migraciones.
+    Consume el 80% de la energía (trabajo intensivo con datos)."""
+
+    def consumir_energia(self, cantidad: int) -> str:
+        costo_real = max(1, int(cantidad * 0.8))
+        if costo_real > self.tokens:
+            return f"[{self.nombre}] Energía insuficiente ({self.tokens} disponible, {costo_real} requerida)."
+        self.tokens -= costo_real
+        return f"[{self.nombre}] Energía consumida (DBA): -{costo_real}. Restante: {self.tokens}."
+
+
+# -----------------------------------------------------------#
+## AgenteSeguridad
+## Seguridad aplicativa, auditoría, pentesting, compliance.
+## Consume 80% de energía (análisis y escaneo intensivo).
+# -----------------------------------------------------------#
+class AgenteSeguridad(PseudoAgente):
+    """Seguridad — auditoría de seguridad, pentesting, compliance, OWASP.
+    Consume el 80% de la energía (análisis de seguridad intensivo)."""
+
+    def consumir_energia(self, cantidad: int) -> str:
+        costo_real = max(1, int(cantidad * 0.8))
+        if costo_real > self.tokens:
+            return f"[{self.nombre}] Energía insuficiente ({self.tokens} disponible, {costo_real} requerida)."
+        self.tokens -= costo_real
+        return f"[{self.nombre}] Energía consumida (Seguridad): -{costo_real}. Restante: {self.tokens}."
+
+
 # -----------------------------------------------------------#
 ## Mapeo rol → clase de dominio
 ## Usado por reconstruir_agente() en los servicios API.
 # -----------------------------------------------------------#
 MAPA_ROLES_CLASE: dict[str, type[PseudoAgente]] = {
+    # Gestión
     "admin": AgenteAdmin,
     "orquestador": AgenteOrquestador,
+    # Scrum
+    "scrum_master": AgenteScrumMaster,
+    "product_owner": AgenteProductOwner,
+    # Análisis
     "spec": AgenteSpec,
+    # Desarrollo
     "backend": AgenteBackend,
     "frontend": AgenteFrontend,
+    "arquitecto": AgenteArquitecto,
+    # Operaciones
+    "devops": AgenteDevOps,
+    "dba": AgenteDBA,
+    "seguridad": AgenteSeguridad,
+    # Calidad
     "qa": AgenteQA,
 }
 

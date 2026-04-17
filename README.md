@@ -123,7 +123,7 @@ python -c "from dotenv import load_dotenv; print('python-dotenv - OK')"
 │   └── login.py                   # Template HTML: formulario de login
 │
 ├── tests/                         # 🧪 Tests de integración (pytest + httpx)
-│   └── test_integracion.py        # 9 tests: API key, briefing, flujo completo R5
+│   └── test_integracion.py        # 9 tests: API key, briefing, flujo completo
 │
 ├── .github/                       # 🤖 Framework ASD — Agentes IA especializados
 │   ├── agents/                    # 9 agentes (.agent.md): orchestrator, spec, backend, frontend, qa, GAIDD
@@ -133,10 +133,7 @@ python -c "from dotenv import load_dotenv; print('python-dotenv - OK')"
 │   ├── copilot-instructions.md    # Instrucciones globales para Copilot
 │   └── INDEX.md                   # Inventario completo de componentes y relaciones
 │
-├── img/                           # 📸 Capturas de pantalla para evidencia visual
-│
-└── tests/                         # 🧪 Tests de integración (pytest + httpx)
-    └── test_integracion.py        # 9 tests: API key, briefing, flujo completo R5
+└──  img/                           # 📸 Capturas de pantalla para evidencia visual
 ```
 
 ### Separación `domain/` vs `schemas/`
@@ -241,11 +238,23 @@ Los agentes del sistema están basados en el framework ASD (`.github/agents/`). 
 ```python
 # domain/agentes.py — reconstruir_desde_datos()
 MAPA_ROLES_CLASE = {
+    # Gestión
     "admin": AgenteAdmin,
     "orquestador": AgenteOrquestador,
+    # Scrum
+    "scrum_master": AgenteScrumMaster,
+    "product_owner": AgenteProductOwner,
+    # Análisis
     "spec": AgenteSpec,
+    # Desarrollo
     "backend": AgenteBackend,
     "frontend": AgenteFrontend,
+    "arquitecto": AgenteArquitecto,
+    # Operaciones
+    "devops": AgenteDevOps,
+    "dba": AgenteDBA,
+    "seguridad": AgenteSeguridad,
+    # Calidad
     "qa": AgenteQA,
 }
 
@@ -256,15 +265,21 @@ def reconstruir_desde_datos(datos: dict) -> PseudoAgente:
 
 ### Jerarquía de agentes y consumo energético
 
-| Clase | Rol | Energía | Basado en |
-|-------|-----|---------|-----------|
-| `PseudoAgente` | (base) | 100% | — |
-| `AgenteAdmin` | `admin` | 50% | `agent_orchestrator` (coordinador) |
-| `AgenteOrquestador` | `orquestador` | 30% | `agent_orchestrator` (pipeline GAIDD) |
-| `AgenteSpec` | `spec` | 70% | `agent_spec` (análisis de requerimientos) |
-| `AgenteBackend` | `backend` | 100% | `agent_backend` (implementación) |
-| `AgenteFrontend` | `frontend` | 100% | `agent_frontend` (implementación) |
-| `AgenteQA` | `qa` | 80% | `agent_qa` (testing) |
+| Categoría | Clase | Rol | Energía | Descripción |
+|-----------|-------|-----|---------|-------------|
+| **Base** | `PseudoAgente` | (genérico) | 100% | Agente sin especialización |
+| **Gestión** | `AgenteAdmin` | `admin` | 50% | Administrador del sistema |
+| | `AgenteOrquestador` | `orquestador` | 30% | Pipeline GAIDD, coordinación |
+| **Scrum** | `AgenteScrumMaster` | `scrum_master` | 30% | Ceremonias, impedimentos |
+| | `AgenteProductOwner` | `product_owner` | 40% | Backlog, priorización |
+| **Análisis** | `AgenteSpec` | `spec` | 70% | Requerimientos, HU |
+| **Desarrollo** | `AgenteBackend` | `backend` | 100% | Lógica de negocio, APIs |
+| | `AgenteFrontend` | `frontend` | 100% | Componentes UI, estado |
+| | `AgenteArquitecto` | `arquitecto` | 60% | Diseño de sistema, ADRs |
+| **Operaciones** | `AgenteDevOps` | `devops` | 90% | CI/CD, infraestructura |
+| | `AgenteDBA` | `dba` | 80% | Modelado de datos, queries |
+| | `AgenteSeguridad` | `seguridad` | 80% | Auditoría, pentesting, OWASP |
+| **Calidad** | `AgenteQA` | `qa` | 80% | Testing, Gherkin, riesgos |
 
 El polimorfismo de `consumir_energia()` decide el costo real sin lógica en el endpoint.
 
@@ -286,7 +301,7 @@ Al iniciar sesión, el usuario ve una oficina animada con tres zonas donde los a
 | 😴 **Holgazaneando** | Rojo | Agentes sin misiones y energía > 50 |
 | 🎮 **Recreándose** | Azul | Agentes sin misiones y energía ≤ 50 |
 
-Los agentes se representan con iconos según su rol (🎯 orquestador, 📋 spec, ⚙️ backend, 🎨 frontend, 🧪 qa, 👔 admin) y tienen una barra de energía visual con indicador de experiencia (`⭐ N XP`). Al hacer clic en un agente se despliega su detalle con misiones asignadas y recompensas.
+Los agentes se representan con iconos según su rol (� scrum_master, 📌 product_owner, 🎯 orquestador, 👔 admin, 📋 spec, ⚙️ backend, 🎨 frontend, 🏗️ arquitecto, 🚀 devops, 🗄️ dba, 🔐 seguridad, 🧪 qa) y tienen una barra de energía visual con indicador de experiencia (`⭐ N XP`). Al hacer clic en un agente se despliega su detalle con misiones asignadas y recompensas.
 
 Los botones de la barra lateral dependen del rol:
 - **Admin**: crear agente, nueva misión, enviar mensaje, completar misión, recargar agente, eliminar agente + consultas.
@@ -309,9 +324,9 @@ En lugar de una sola API externa, se implementaron **3 APIs diferenciadas según
 
 | Rol | API | Tono |
 |-----|-----|------|
-| qa, spec | [Advice Slip](https://api.adviceslip.com/) | Empático (consejo motivacional) |
-| backend, admin | [Wikipedia Featured](https://en.wikipedia.org/api/rest_v1/) | Profesional (artículo destacado del día) |
-| orquestador, frontend, otros | [JokeAPI Programming](https://v2.jokeapi.dev/) | Divertido (chiste de programación en español) |
+| qa, spec, scrum_master, product_owner, seguridad | [Advice Slip](https://api.adviceslip.com/) | Empático (consejo motivacional) |
+| backend, admin, arquitecto, dba | [Wikipedia Featured](https://en.wikipedia.org/api/rest_v1/) | Profesional (artículo destacado del día) |
+| orquestador, frontend, devops, otros | [JokeAPI Programming](https://v2.jokeapi.dev/) | Divertido (chiste de programación en español) |
 
 Si el agente tiene misiones de seguridad, se activa además el **Agente Smit** que consulta NVD NIST y GitHub Advisory (ver sección Agente Smit).
 
@@ -330,7 +345,7 @@ Esto añade progresión a los agentes: no solo pierden energía al trabajar, tam
 
 Se añadieron validadores con `@field_validator` (Pydantic v2) en los modelos de entrada:
 
-- **`CrearAgenteBody.rol`** — Normaliza a minúsculas y valida contra roles permitidos (`orquestador`, `spec`, `backend`, `frontend`, `qa`, `admin`).
+- **`CrearAgenteBody.rol`** — Normaliza a minúsculas y valida contra roles permitidos (`scrum_master`, `product_owner`, `orquestador`, `admin`, `spec`, `backend`, `frontend`, `arquitecto`, `devops`, `dba`, `seguridad`, `qa`).
 - **`CrearMisionBody.energia_positiva`** — Rechaza energía ≤ 0.
 - **`CrearMisionBody.prioridad_valida`** — Valida contra prioridades permitidas (`baja`, `media`, `alta`, `critica`).
 - **`ActualizarAgenteBody.rol`** — Mismo validador de rol (solo si se proporciona).

@@ -304,12 +304,30 @@ DASHBOARD_HTML = """
       <input id="ca-nombre" placeholder="Ej: Agente Smith">
       <label>Rol</label>
       <select id="ca-rol">
-        <option value="orquestador">Orquestador</option>
-        <option value="spec">Spec</option>
-        <option value="backend">Backend</option>
-        <option value="frontend">Frontend</option>
-        <option value="qa">QA</option>
-        <option value="admin">Admin</option>
+        <optgroup label="Scrum">
+          <option value="scrum_master">Scrum Master</option>
+          <option value="product_owner">Product Owner</option>
+        </optgroup>
+        <optgroup label="Gestión">
+          <option value="orquestador">Orquestador</option>
+          <option value="admin">Admin</option>
+        </optgroup>
+        <optgroup label="Análisis">
+          <option value="spec">Spec</option>
+        </optgroup>
+        <optgroup label="Desarrollo">
+          <option value="backend">Backend</option>
+          <option value="frontend">Frontend</option>
+          <option value="arquitecto">Arquitecto</option>
+        </optgroup>
+        <optgroup label="Operaciones">
+          <option value="devops">DevOps</option>
+          <option value="dba">DBA</option>
+          <option value="seguridad">Seguridad</option>
+        </optgroup>
+        <optgroup label="Calidad">
+          <option value="qa">QA</option>
+        </optgroup>
       </select>
       <label>Energía inicial</label>
       <input id="ca-energia" type="number" value="100" min="1" max="200">
@@ -446,12 +464,30 @@ DASHBOARD_HTML = """
       <label>Nuevo rol (opcional)</label>
       <select id="ra-rol">
         <option value="">(sin cambio)</option>
-        <option value="orquestador">Orquestador</option>
-        <option value="spec">Spec</option>
-        <option value="backend">Backend</option>
-        <option value="frontend">Frontend</option>
-        <option value="qa">QA</option>
-        <option value="admin">Admin</option>
+        <optgroup label="Scrum">
+          <option value="scrum_master">Scrum Master</option>
+          <option value="product_owner">Product Owner</option>
+        </optgroup>
+        <optgroup label="Gestión">
+          <option value="orquestador">Orquestador</option>
+          <option value="admin">Admin</option>
+        </optgroup>
+        <optgroup label="Análisis">
+          <option value="spec">Spec</option>
+        </optgroup>
+        <optgroup label="Desarrollo">
+          <option value="backend">Backend</option>
+          <option value="frontend">Frontend</option>
+          <option value="arquitecto">Arquitecto</option>
+        </optgroup>
+        <optgroup label="Operaciones">
+          <option value="devops">DevOps</option>
+          <option value="dba">DBA</option>
+          <option value="seguridad">Seguridad</option>
+        </optgroup>
+        <optgroup label="Calidad">
+          <option value="qa">QA</option>
+        </optgroup>
       </select>
       <label>Nueva energía (opcional)</label>
       <input id="ra-energia" type="number" min="1" max="200" placeholder="Ej: 100">
@@ -496,7 +532,7 @@ DASHBOARD_HTML = """
   }}
 
   // ─── Office rendering ───
-  const ICONS = {{ 'orquestador': '🎯', 'spec': '📋', 'backend': '⚙️', 'frontend': '🎨', 'qa': '🧪', 'admin': '👔' }};
+  const ICONS = {{ 'scrum_master': '🏅', 'product_owner': '📌', 'orquestador': '🎯', 'admin': '👔', 'spec': '📋', 'backend': '⚙️', 'frontend': '🎨', 'arquitecto': '🏗️', 'devops': '🚀', 'dba': '🗄️', 'seguridad': '🔐', 'qa': '🧪' }};
 
   function energyColor(e) {{
     if (e > 70) return '#00ff99';

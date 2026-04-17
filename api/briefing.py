@@ -36,9 +36,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["Briefing"])
 
 # ── Mapeo rol → API + tono ──
-_ROLES_ADVICE = {"qa", "spec"}
-_ROLES_WIKIPEDIA = {"backend", "admin"}
-# El resto (orquestador, frontend) usa JokeAPI
+_ROLES_ADVICE = {"qa", "spec", "scrum_master", "product_owner", "seguridad"}
+_ROLES_WIKIPEDIA = {"backend", "admin", "arquitecto", "dba"}
+# El resto (orquestador, frontend, devops) usa JokeAPI
 
 
 def _obtener_advice() -> tuple[str | None, str]:
