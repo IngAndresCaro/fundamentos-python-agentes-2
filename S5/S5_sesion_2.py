@@ -112,9 +112,7 @@ app = FastAPI(
 #
 # PRUEBA: Ejecuta en tu terminal: pip install fastapi uvicorn
 #         Luego verifica: python -c "import fastapi; print(fastapi.__version__)"
-# $ python -c "import fastapi; print(fastapi.__version__)"
-# 0.135.3
-# ((.venv))
+
 # ======================================================
 
 
@@ -141,8 +139,7 @@ def inicio():
 #         por FastAPI a partir de tu codigo. Puedes probar endpoints ahi mismo.
 # PRUEBA: Cambia el mensaje de arriba, guarda el archivo, y recarga /docs.
 #         uvicorn --reload detecta el cambio y reinicia el servidor solo.
-# CONCLUSION: El servicio respondio un 200 estado exitoso y retorno el Objeto que se definio anteriormente
-# INFO:     127.0.0.1:51827 - "GET / HTTP/1.1" 200 OK
+
 
 # ======================================================
 # CAPITULO 4: GET con parametros (10 min)
@@ -185,6 +182,22 @@ def obtener_todos_los_agentes():
 #   "rol": "explorador",
 #   "energia": 100
 # }
+=======
+# @app.get("/agente/{nombre}")
+# def obtener_agente(nombre: str):
+#     agente = despertar_agente(nombre)
+#     if agente is None:
+#         raise HTTPException(status_code=404, detail=f"Agente '{nombre}' no encontrado")
+#     return agente
+#
+#
+# @app.get("/agentes/")
+# def obtener_todos_los_agentes():
+#     return listar_agentes()
+
+# PRUEBA: Prueba en Swagger UI: busca un agente que exista y uno que no.
+#         ¿Que respuesta recibes? ¿Que codigo HTTP retorna cada caso?
+# CONCLUSION:
 
 
 # ======================================================
@@ -286,6 +299,30 @@ def obtener_mensajes(nombre: str):
 # }
 # CONCLUSION: podemos ver que el error nos devuelve un contenido no esperado deberiamos manejarlo y crear el agente pero con 0 energia o algo minimo
 # por otro lado la mensageria de mensajes y crear agentes funciono correctamente desde el swagger ui indicando que los servicios estan listo para el consumo
+=======
+# @app.post("/agentes/")
+# def crear_agente(agente: AgenteRequest):
+#     resultado = registrar_agente(agente.nombre, agente.rol, agente.energia)
+#     return {"mensaje": resultado}
+#
+#
+# @app.post("/mensajes/")
+# def crear_mensaje(mensaje: MensajeRequest):
+#     resultado = enviar_mensaje(mensaje.remitente, mensaje.destinatario, mensaje.contenido)
+#     return {"mensaje": resultado}
+#
+#
+# @app.get("/mensajes/{nombre}")
+# def obtener_mensajes(nombre: str):
+#     return leer_mensajes(nombre)
+
+# PRUEBA: En Swagger UI: crea un agente nuevo via POST /agentes/.
+#         Luego consultalo via GET /agente/{nombre}. ¿Aparece?
+# PRUEBA: Envia un mensaje via POST /mensajes/.
+#         Luego consulta la bandeja via GET /mensajes/{nombre}.
+# PRUEBA: Intenta enviar un POST con energia="hola" en vez de un numero.
+#         ¿Que error recibes? Esa es la validacion automatica de Pydantic.
+# CONCLUSION:
 
 
 # -----------------------------------------------------------#

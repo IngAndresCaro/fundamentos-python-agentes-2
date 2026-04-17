@@ -23,6 +23,7 @@ cd S5
 python3 -m venv .venv
 ```
 #Que es venv? es un creador de entorno virtual
+=======
 
 Esto crea una carpeta `.venv` dentro de `S5/` con una copia aislada de Python.
 
@@ -48,6 +49,7 @@ source .venv/bin/activate
 source .venv/Scripts/activate
 ```
 
+=======
 Sabras que esta activo porque veras `(.venv)` al inicio de tu linea de terminal.
 
 ### 4. Instala las dependencias
@@ -70,6 +72,8 @@ python -c "import requests; print('Requests - OK')"
 $ python -c "import requests; print('Requests - OK')"
 Requests - OK
 ((.venv) ) 
+=======
+python -c "import requests; print('Requests - OK')"
 ```
 
 ---

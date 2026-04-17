@@ -90,6 +90,7 @@ def enviar_mensaje(remitente: str, destinatario: str, contenido: str) -> str:
     if cursor.fetchone() is None:
         conn.close()
         return f"[DB] Error: El agente destinatario '{destinatario}' no existe."
+=======
     timestamp = datetime.datetime.now().isoformat()
     cursor.execute(
         "INSERT INTO mensajes (remitente, destinatario, contenido, timestamp) VALUES (?, ?, ?, ?)",
@@ -166,6 +167,13 @@ if __name__ == "__main__":
     # PRUEBA: Busca el archivo agentes.db en tu carpeta S5/. Abrelo con un editor de texto. ¿Que ves? (Nada legible, es binario.)
     # CONCLUSION:
     ##Al momento de ejecutar elbloque nos confirma si existe la base de datos nos da true, y la ruta que esta
+=======
+    # crear_tablas()
+    # print(f"[Sistema] Tablas creadas. ¿Existe el archivo? {os.path.exists(DB_PATH)}")
+    # print(f"[Sistema] Archivo de base de datos: {DB_PATH}")
+
+    # PRUEBA: Busca el archivo agentes.db en tu carpeta S5/. Abrelo con un editor de texto. ¿Que ves? (Nada legible, es binario.)
+    # CONCLUSION:
 
     # ======================================================
     # CAPITULO 3: Registrar un agente (10 min)
@@ -189,6 +197,10 @@ if __name__ == "__main__":
     # [DB] Agente 'Titan' registrado con exito.
     # no veo que saque error dos veces crear a Atlas ejecuta creando los nuevos agentes,
     # en el segundo ejecución ya saca error porque los agentes ya estan creados, en bases de datos
+=======
+
+    # PRUEBA: Intenta registrar 'Atlas' dos veces. ¿Que mensaje recibes? ¿Por que?
+    # CONCLUSION:
 
     # ======================================================
     # CAPITULO 4: Despertar un agente (10 min)
@@ -214,6 +226,17 @@ if __name__ == "__main__":
     # Ahora cierra Python (Ctrl+C o cierra la terminal).
     # Vuelve a abrir y ejecuta SOLO este capitulo. El agente sigue ahi.
     # Agente inexistente: None
+=======
+    # datos_atlas = despertar_agente("Atlas")
+    # print(f"Agente encontrado: {datos_atlas}")
+    # print("Ahora cierra Python (Ctrl+C o cierra la terminal).")
+    # print("Vuelve a abrir y ejecuta SOLO este capitulo. El agente sigue ahi.")
+    #
+    # datos_fantasma = despertar_agente("NoExisto")
+    # print(f"Agente inexistente: {datos_fantasma}")
+
+    # PRUEBA: Cierra Python completamente. Vuelve a abrir. Ejecuta despertar_agente('Atlas'). ¿Sigue vivo?
+    # CONCLUSION:
 
     # ======================================================
     # CAPITULO 5: La tabla de mensajes (10 min)
@@ -235,6 +258,7 @@ if __name__ == "__main__":
     ## si no existe no lo valida y no guarda la data
     ## deberiamos validar que por lo menos el agente deberia existir
     ###comentamos los print para que no nos llene de span la base de datos
+=======
 
     # ======================================================
     # CAPITULO 6: Bandeja de entrada (10 min)
@@ -258,6 +282,7 @@ if __name__ == "__main__":
     print(f"\n--- Bandeja de entrada de Hermes ({len(mensajes_hermes)} mensajes) ---")
     for msg in mensajes_hermes:
         print(f"  [{msg['timestamp']}] {msg['remitente']} -> {msg['contenido']}")
+=======
 
     # ======================================================
     # CAPITULO 7: Experimentacion libre (5 min)
@@ -284,6 +309,24 @@ if __name__ == "__main__":
 
     # PRUEBA: Cierra Python. Vuelve a abrir. ¿Siguen los mensajes? ¿Y los agentes?
     # CONCLUSION: La data se persiste perfectaente, se puede ver los agentes quedan registrados y mensajes guardados, esto tambien despues de apagar y prender el . Py
+=======
+    # print(registrar_agente("Hermes", "mensajero", 120))
+    # print(registrar_agente("Lyra", "diplomata", 90))
+    #
+    # print(enviar_mensaje("Hermes", "Lyra", "Tienes un mensaje del consejo."))
+    # print(enviar_mensaje("Lyra", "Hermes", "Recibido. Preparare la respuesta."))
+    # print(enviar_mensaje("Atlas", "Hermes", "Necesito que lleves esto a Lyra."))
+    #
+    # print("\n--- Todos los agentes registrados ---")
+    # for agente in listar_agentes():
+    #     print(f"  {agente['nombre']} | Rol: {agente['rol']} | Energia: {agente['energia']}")
+    #
+    # print("\n--- Bandeja de Hermes ---")
+    # for msg in leer_mensajes("Hermes"):
+    #     print(f"  [{msg['timestamp']}] {msg['remitente']} -> {msg['contenido']}")
+
+    # PRUEBA: Cierra Python. Vuelve a abrir. ¿Siguen los mensajes? ¿Y los agentes?
+    # CONCLUSION:
 
     # -----------------------------------------------------------#
     # Felicidades! Ya sabes persistir datos con SQLite.

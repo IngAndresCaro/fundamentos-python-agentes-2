@@ -11,3 +11,11 @@
 --service nuestros CRUD
 --respository nuestro almacenamiento 
 --models nos ayuda a dar tipado a nuestros objetos y no se rompan cuando se conecta a un back o un repositorio
+=======
+El contenido de la sesiones prácticas se subirá en ramas que representen cada semana, así como los talleres de la semana.
+
+## Semana 5: SQLite + FastAPI
+
+Esta semana es de **aprendizaje autonomo**. Los scripts guiados estan en la carpeta `S5/`.
+
+Antes de comenzar, lee las instrucciones de preparacion del entorno en [`S5/README.md`](S5/README.md).
