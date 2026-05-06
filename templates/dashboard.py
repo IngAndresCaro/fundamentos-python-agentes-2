@@ -265,6 +265,8 @@ DASHBOARD_HTML = """
 
       <div class="sep"></div>
       <h2>Consultas</h2>
+      <input type="file" id="videoInput" accept="video/*" style="display:none;">
+      <button id="loadVideoBtn" style="width:100%;margin-bottom:0.5rem">Cargar video</button>
       <button onclick="openModal('ver-misiones')">🔍 Misiones de agente</button>
       <button onclick="openModal('ver-mensajes')">📨 Mensajes de agente</button>
       <button onclick="openModal('ver-briefing')">🗂️ Briefing de agente</button>
@@ -501,7 +503,7 @@ DASHBOARD_HTML = """
   <!-- Toast -->
   <div class="toast" id="toast"></div>
 
-<script>
+
   // ─── Estado ───
   const ROL = "{rol}";
   let agentes = [];

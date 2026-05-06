@@ -52,7 +52,7 @@ pip install -r requirements.txt
 Copia el archivo de ejemplo y completa los valores:
 
 ```bash
-cp config/.env.example config/.env
+cp config/.env
 ```
 
 Edita `config/.env` con tus valores:

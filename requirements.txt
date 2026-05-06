@@ -1,3 +1,10 @@
+# Para resumen automático
+sumy
+# Requisito para tokenización de sumy
+nltk
+# Requisitos para transcripción de video con Whisper
+git+https://github.com/openai/whisper.git
+torch
 fastapi
 uvicorn
 requests
